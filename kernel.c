@@ -4,13 +4,13 @@
 /* This function is called when the module is loaded. */
 int simple init(void)
 {
-printk(KERN INFO "Loading Kernel Module∖n");
+printk(KERN INFO "Loading Kernel Module A1115545∖n");
 return 0;
 }
 /* This function is called when the module is removed. */
 void simple exit(void)
 {
-printk(KERN INFO "Removing Kernel Module∖n");
+printk(KERN INFO "Removing Kernel Module A1115545∖n");
 }
 /* Macros for registering module entry and exit points. */
 module init(simple init);
