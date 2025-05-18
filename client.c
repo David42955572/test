@@ -38,31 +38,44 @@ int init_client(const char *server_ip) {
     return sockfd;
 }
 
-// 客戶端發送登入請求
-void client_login(int sockfd, const char *username, const char *password) {
+// 發送資料
+int client_send(int sockfd, uint8_t operation, uint8_t status, const uint8_t *data, uint32_t length) {
     uint8_t buffer[BUFFER_SIZE];
-    char credentials[256];
-    snprintf(credentials, sizeof(credentials), "%s:%s", username, password);
-
-    int len = pack_message(1, 0, (uint8_t *)credentials, strlen(credentials), buffer);
-    send(sockfd, buffer, len, 0);
-
-    // 接收回應
-    int received = recv(sockfd, buffer, BUFFER_SIZE, 0);
-    if (received >= 6) {  // 至少收到協議頭
-        ProtocolHeader header;
-        parse_header(buffer, &header);
-        if (received >= 6 + header.length) {
-            uint8_t data[MAX_DATA_SIZE + 1];
-            parse_data(buffer + 6, header.length, data);
-            printf("Response - Operation: %d, Status: %d, Length: %d, Data: %s\n",
-               header.operation, header.status, header.length, data);
-        } else {
-            printf("收到資料不完整\n");
-        }
-    } else {
-        printf("收到資料不足協議頭長度\n");
+    int send_len = pack_message(operation, status, data, length, buffer);
+    if (send_len < 0) {
+        fprintf(stderr, "封裝訊息失敗\n");
+        return -1;
     }
+
+    int sent_bytes = send(sockfd, buffer, send_len, 0);
+    if (sent_bytes != send_len) {
+        perror("發送數據失敗");
+        return -1;
+    }
+
+    return sent_bytes;
+}
+
+// 接收資料
+int client_receive(int sockfd, uint8_t *buffer, int buffer_size) {
+    int received = recv(sockfd, buffer, buffer_size, 0);
+    if (received < 6) {
+        fprintf(stderr, "收到的數據不足協議頭部長度\n");
+        return -1;
+    }
+
+    ProtocolHeader header;
+    if (parse_header(buffer, &header) != 0) {
+        fprintf(stderr, "協議頭部解析失敗\n");
+        return -1;
+    }
+
+    if (received < 6 + header.length) {
+        fprintf(stderr, "數據區未完整接收，期望 %d 字節，實際接收 %d 字節\n", header.length, received - 6);
+        return -1;
+    }
+
+    return header.length;
 }
 
 int main() {
@@ -70,7 +83,15 @@ int main() {
     int sockfd = init_client(server_ip);
 
     if (sockfd >= 0) {
-        client_login(sockfd, "test_user", "password123");
+        const char *test_message = "Hello, Server!";
+        client_send(sockfd, 1, 0, (uint8_t *)test_message, strlen(test_message));
+
+        uint8_t buffer[BUFFER_SIZE];
+        int received_len = client_receive(sockfd, buffer, BUFFER_SIZE);
+        if (received_len > 0) {
+            printf("接收成功，數據長度：%d\n", received_len);
+        }
+
         close(sockfd);
     }
 
