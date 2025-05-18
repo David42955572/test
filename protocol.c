@@ -5,12 +5,6 @@
 
 #define MAX_DATA_SIZE 1024
 
-// 協議頭部結構
-typedef struct {
-    uint8_t operation;  // 操作碼
-    uint8_t status;     // 狀態碼
-    uint32_t length;    // 數據區長度 (大端序)
-} ProtocolHeader;
 
 // 封裝完整協議包
 int pack_message(uint8_t operation, uint8_t status, const uint8_t *data, uint32_t data_length, uint8_t *buffer) {
