@@ -123,6 +123,71 @@ int client_send_login(int sockfd, const char *username, const char *password) {
     return 0;
 }
 
+int client_send_backup_file(int sockfd, const char *filepath) {
+    FILE *fp = fopen(filepath, "rb");
+    if (!fp) {
+        perror("打開備份檔案失敗");
+        return -1;
+    }
+
+    // 讀檔案大小
+    fseek(fp, 0, SEEK_END);
+    long filesize = ftell(fp);
+    rewind(fp);
+
+    if (filesize <= 0 || filesize > MAX_DATA_SIZE) {
+        fprintf(stderr, "備份檔案大小不正確或超過上限\n");
+        fclose(fp);
+        return -1;
+    }
+
+    uint8_t *file_buffer = malloc(filesize);
+    if (!file_buffer) {
+        fprintf(stderr, "記憶體配置失敗\n");
+        fclose(fp);
+        return -1;
+    }
+
+    size_t read_bytes = fread(file_buffer, 1, filesize, fp);
+    fclose(fp);
+    if (read_bytes != filesize) {
+        fprintf(stderr, "讀取備份檔案失敗\n");
+        free(file_buffer);
+        return -1;
+    }
+
+    // 傳送備份資料
+    int sent = client_send(sockfd, 2, 0, file_buffer, filesize);
+    free(file_buffer);
+
+    if (sent < 0) {
+        fprintf(stderr, "備份資料發送失敗\n");
+        return -1;
+    }
+
+    // 接收伺服器回應
+    uint8_t buffer[BUFFER_SIZE];
+    int received_len = client_receive(sockfd, buffer, BUFFER_SIZE);
+    if (received_len < 0) {
+        fprintf(stderr, "備份回應接收失敗\n");
+        return -1;
+    }
+
+    ProtocolHeader header;
+    parse_header(buffer, &header);
+
+    uint8_t data[MAX_DATA_SIZE + 1];
+    parse_data(buffer + 6, header.length, data);
+
+    printf("備份回應 - Operation: %d, Status: %d, Data: %s\n", header.operation, header.status, data);
+
+    if (header.status != 0) {
+        fprintf(stderr, "備份失敗，狀態碼：%d\n", header.status);
+        return -1;
+    }
+
+    return 0;
+}
 
 int main() {
     const char *server_ip = "192.168.56.102";
@@ -130,10 +195,11 @@ int main() {
 
     if (sockfd >= 0) {
         const char *username , *password;
-        *username="user";
-        *password="pass";
+        username="user";
+        password="pass";
         client_send_login(sockfd, username, password);
-
+        client_send_backup_file(sockfd, "test.txt");
+        
         close(sockfd);
     }
 
