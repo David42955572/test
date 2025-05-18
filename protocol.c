@@ -51,24 +51,3 @@ int parse_data(const uint8_t *buffer, uint32_t length, uint8_t *output) {
     output[length] = '\0';  // 確保結尾是空字元
     return 0;
 }
-
-// 測試函式
-void test_protocol() {
-    uint8_t buffer[1030];
-    uint8_t data[] = "Hello, Protocol";
-    int len = pack_message(1, 0, data, strlen((char *)data), buffer);
-
-    ProtocolHeader header;
-    parse_header(buffer, &header);
-
-    printf("Operation: %d, Status: %d, Length: %d\n", header.operation, header.status, header.length);
-
-    uint8_t output[MAX_DATA_SIZE];
-    parse_data(buffer + 6, header.length, output);
-    printf("Data: %s\n", output);
-}
-
-int main() {
-    test_protocol();
-    return 0;
-}
