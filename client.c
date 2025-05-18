@@ -156,6 +156,55 @@ int client_send_backup_request(int sockfd, const char *username, const char *fil
     return 0;
 }
 
+int client_request_and_receive_file_list(int sockfd, const char *username) {
+    // 送出取備份檔案列表請求（operation=4, status=0, data=NULL）
+    int sent = client_send(sockfd, 4, 0, username, NULL, 0);
+    if (sent < 0) {
+        fprintf(stderr, "取備份檔案列表請求發送失敗\n");
+        return -1;
+    }
+
+    // 緊接著準備接收多筆檔案名稱
+    uint8_t buffer[BUFFER_SIZE];
+    int total_files = 0;
+
+    while (1) {
+        int received = recv(sockfd, buffer, BUFFER_SIZE, 0);
+        if (received <= 0) {
+            // 連線斷開或錯誤
+            break;
+        }
+
+        ProtocolHeader header;
+        if (parse_header(buffer, &header) != 0) {
+            fprintf(stderr, "協議頭解析失敗\n");
+            break;
+        }
+
+        if (strcmp(username, header.username) != 0) {
+            printf("收到非針對當前用戶的數據，忽略\n");
+            continue;
+        }
+
+        if (header.length == 0) {
+            // 空資料長度代表沒資料了，結束接收
+            break;
+        }
+
+        uint8_t data[MAX_DATA_SIZE + 1] = {0};
+        parse_data(buffer + 3 + header.username_len + 4, header.length, data);
+        data[header.length] = '\0';  // 確保字串結尾
+
+        printf("備份檔案 #%d: %s\n", ++total_files, data);
+    }
+
+    if (total_files == 0) {
+        printf("沒有備份檔案\n");
+    }
+
+    return total_files;
+}
+
 int main() {
     const char *server_ip = "192.168.56.102";
     const char *username = "user";
@@ -166,6 +215,7 @@ int main() {
         client_send_login(sockfd, username, password);
         client_send_backup_file(sockfd, username, "test.txt");
         client_send_backup_request(sockfd, username, "test.txt");
+        client_request_and_receive_file_list(sockfd, username);
         close(sockfd);
     }
 
