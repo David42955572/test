@@ -78,19 +78,61 @@ int client_receive(int sockfd, uint8_t *buffer, int buffer_size) {
     return header.length;
 }
 
+// 發送登入請求
+int client_send_login(int sockfd, const char *username, const char *password) {
+    char credentials[256];
+    snprintf(credentials, sizeof(credentials), "%s:%s", username, password);
+
+    // 先發送登入請求
+    int sent = client_send(sockfd, 1, 0, (uint8_t *)credentials, strlen(credentials));
+    if (sent < 0) {
+        fprintf(stderr, "登入請求發送失敗\n");
+        return -1;
+    }
+
+    // 接收伺服器回應
+    uint8_t buffer[BUFFER_SIZE];
+    int received_len = client_receive(sockfd, buffer, BUFFER_SIZE);
+    if (received_len < 0) {
+        fprintf(stderr, "登入回應接收失敗\n");
+        return -1;
+    }
+
+    ProtocolHeader header;
+    parse_header(buffer, &header);
+
+    // 解析數據區並印出
+    uint8_t data[MAX_DATA_SIZE + 1];
+    parse_data(buffer + 6, header.length, data);
+
+    printf("登入回應 - Operation: %d, Status: %d, Data: %s\n", header.operation, header.status, data);
+
+    // 這裡可以根據 status 做不同的處理，譬如判斷是否登入成功
+    switch (header.status) {
+        case 0:
+            printf("登入成功\n");
+            break;
+        case 1:
+            printf("用戶名或密碼錯誤\n");
+            break;
+        default:
+            printf("未知狀態碼: %d\n", header.status);
+            break;
+    }
+
+    return 0;
+}
+
+
 int main() {
     const char *server_ip = "192.168.56.102";
     int sockfd = init_client(server_ip);
 
     if (sockfd >= 0) {
-        const char *test_message = "Hello, Server!";
-        client_send(sockfd, 1, 0, (uint8_t *)test_message, strlen(test_message));
-
-        uint8_t buffer[BUFFER_SIZE];
-        int received_len = client_receive(sockfd, buffer, BUFFER_SIZE);
-        if (received_len > 0) {
-            printf("接收成功，數據長度：%d\n", received_len);
-        }
+        const char *username , *password;
+        *username="user";
+        *password="pass";
+        client_send_login(sockfd, username, password);
 
         close(sockfd);
     }
