@@ -39,9 +39,9 @@ int init_client(const char *server_ip) {
 }
 
 // 發送資料
-int client_send(int sockfd, uint8_t operation, uint8_t status, const uint8_t *data, uint32_t length) {
+int client_send(int sockfd, uint8_t operation, uint8_t status, const char *username, const uint8_t *data, uint32_t length) {
     uint8_t buffer[BUFFER_SIZE];
-    int send_len = pack_message(operation, status, data, length, buffer);
+    int send_len = pack_message(operation, status, username, data, length, buffer);
     if (send_len < 0) {
         fprintf(stderr, "封裝訊息失敗\n");
         return -1;
@@ -57,8 +57,9 @@ int client_send(int sockfd, uint8_t operation, uint8_t status, const uint8_t *da
 }
 
 // 接收資料
-int client_receive(int sockfd, uint8_t *buffer, int buffer_size) {
-    int received = recv(sockfd, buffer, buffer_size, 0);
+int client_receive(int sockfd, const char *username) {
+    uint8_t buffer[BUFFER_SIZE];
+    int received = recv(sockfd, buffer, BUFFER_SIZE, 0);
     if (received < 6) {
         fprintf(stderr, "收到的數據不足協議頭部長度\n");
         return -1;
@@ -70,10 +71,14 @@ int client_receive(int sockfd, uint8_t *buffer, int buffer_size) {
         return -1;
     }
 
-    if (received < 6 + header.length) {
-        fprintf(stderr, "數據區未完整接收，期望 %d 字節，實際接收 %d 字節\n", header.length, received - 6);
+    if (strcmp(username, header.username) != 0) {
+        printf("收到非針對當前用戶的數據\n");
         return -1;
     }
+
+    uint8_t data[MAX_DATA_SIZE + 1];
+    parse_data(buffer + 3 + header.username_len + 4, header.length, data);
+    printf("接收資料 - Operation: %d, Status: %d, Data: %s\n", header.operation, header.status, data);
 
     return header.length;
 }
@@ -83,54 +88,24 @@ int client_send_login(int sockfd, const char *username, const char *password) {
     char credentials[256];
     snprintf(credentials, sizeof(credentials), "%s:%s", username, password);
 
-    // 先發送登入請求
-    int sent = client_send(sockfd, 1, 0, (uint8_t *)credentials, strlen(credentials));
+    int sent = client_send(sockfd, 1, 0, username, (uint8_t *)credentials, strlen(credentials));
     if (sent < 0) {
         fprintf(stderr, "登入請求發送失敗\n");
         return -1;
     }
 
-    // 接收伺服器回應
-    uint8_t buffer[BUFFER_SIZE];
-    int received_len = client_receive(sockfd, buffer, BUFFER_SIZE);
-    if (received_len < 0) {
-        fprintf(stderr, "登入回應接收失敗\n");
-        return -1;
-    }
-
-    ProtocolHeader header;
-    parse_header(buffer, &header);
-
-    // 解析數據區並印出
-    uint8_t data[MAX_DATA_SIZE + 1];
-    parse_data(buffer + 6, header.length, data);
-
-    printf("登入回應 - Operation: %d, Status: %d, Data: %s\n", header.operation, header.status, data);
-
-    // 這裡可以根據 status 做不同的處理，譬如判斷是否登入成功
-    switch (header.status) {
-        case 0:
-            printf("登入成功\n");
-            break;
-        case 1:
-            printf("用戶名或密碼錯誤\n");
-            break;
-        default:
-            printf("未知狀態碼: %d\n", header.status);
-            break;
-    }
-
+    client_receive(sockfd, username);
     return 0;
 }
 
-int client_send_backup_file(int sockfd, const char *filepath) {
+// 發送備份請求
+int client_send_backup_file(int sockfd, const char *username, const char *filepath) {
     FILE *fp = fopen(filepath, "rb");
     if (!fp) {
         perror("打開備份檔案失敗");
         return -1;
     }
 
-    // 讀檔案大小
     fseek(fp, 0, SEEK_END);
     long filesize = ftell(fp);
     rewind(fp);
@@ -148,16 +123,10 @@ int client_send_backup_file(int sockfd, const char *filepath) {
         return -1;
     }
 
-    size_t read_bytes = fread(file_buffer, 1, filesize, fp);
+    fread(file_buffer, 1, filesize, fp);
     fclose(fp);
-    if (read_bytes != filesize) {
-        fprintf(stderr, "讀取備份檔案失敗\n");
-        free(file_buffer);
-        return -1;
-    }
 
-    // 傳送備份資料
-    int sent = client_send(sockfd, 2, 0, file_buffer, filesize);
+    int sent = client_send(sockfd, 2, 0, username, file_buffer, filesize);
     free(file_buffer);
 
     if (sent < 0) {
@@ -165,41 +134,19 @@ int client_send_backup_file(int sockfd, const char *filepath) {
         return -1;
     }
 
-    // 接收伺服器回應
-    uint8_t buffer[BUFFER_SIZE];
-    int received_len = client_receive(sockfd, buffer, BUFFER_SIZE);
-    if (received_len < 0) {
-        fprintf(stderr, "備份回應接收失敗\n");
-        return -1;
-    }
-
-    ProtocolHeader header;
-    parse_header(buffer, &header);
-
-    uint8_t data[MAX_DATA_SIZE + 1];
-    parse_data(buffer + 6, header.length, data);
-
-    printf("備份回應 - Operation: %d, Status: %d, Data: %s\n", header.operation, header.status, data);
-
-    if (header.status != 0) {
-        fprintf(stderr, "備份失敗，狀態碼：%d\n", header.status);
-        return -1;
-    }
-
+    client_receive(sockfd, username);
     return 0;
 }
 
 int main() {
     const char *server_ip = "192.168.56.102";
+    const char *username = "user";
+    const char *password = "pass";
     int sockfd = init_client(server_ip);
 
     if (sockfd >= 0) {
-        const char *username , *password;
-        username="user";
-        password="pass";
         client_send_login(sockfd, username, password);
-        client_send_backup_file(sockfd, "test.txt");
-        
+        client_send_backup_file(sockfd, username, "test.txt");
         close(sockfd);
     }
 
