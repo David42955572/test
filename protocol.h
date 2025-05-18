@@ -8,7 +8,7 @@
 typedef struct {
     uint8_t operation;
     uint8_t status;
-    uint16_t length;
+    uint32_t length;
 } ProtocolHeader;
 
 void pack_header(uint8_t operation, uint8_t status, uint32_t length, uint8_t *buffer);
