@@ -37,6 +37,8 @@ int parse_header(const uint8_t *buffer, ProtocolHeader *header) {
     memcpy(&net_length, buffer + 2, sizeof(uint32_t));
     header->length = ntohl(net_length);
 
+    printf("Raw length bytes: %02x %02x %02x %02x\n", buffer[2], buffer[3], buffer[4], buffer[5]);
+    
     return 0;
 }
 
