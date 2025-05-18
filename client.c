@@ -49,10 +49,19 @@ void client_login(int sockfd, const char *username, const char *password) {
 
     // 接收回應
     int received = recv(sockfd, buffer, BUFFER_SIZE, 0);
-    if (received > 0) {
+    if (received >= 6) {  // 至少收到協議頭
         ProtocolHeader header;
         parse_header(buffer, &header);
-        printf("Login Response - Operation: %d, Status: %d, Length: %d\n", header.operation, header.status, header.length);
+        if (received >= 6 + header.length) {
+            uint8_t data[MAX_DATA_SIZE + 1];
+            parse_data(buffer + 6, header.length, data);
+            printf("Response - Operation: %d, Status: %d, Length: %d, Data: %s\n",
+               header.operation, header.status, header.length, data);
+        } else {
+            printf("收到資料不完整\n");
+        }
+    } else {
+        printf("收到資料不足協議頭長度\n");
     }
 }
 
