@@ -32,6 +32,8 @@ void handle_client(int client_socket) {
 
     // 回應客戶端
     const char *response = "資料接收成功";
+    uint8_t send_buffer[2048];
+    int send_len = pack_message(1, 0, (const uint8_t *)response_msg, strlen(response_msg), send_buffer);
     send(client_socket, response, strlen(response), 0);
 
     close(client_socket);
