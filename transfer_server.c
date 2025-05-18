@@ -27,13 +27,18 @@ void handle_client(int client_socket) {
         return;
     }
 
-    printf("接收到資料 - Operation: %d, Status: %d, Length: %d\n", 
-           header.operation, header.status, header.length);
+    printf("接收到資料 - Operation: %d, Status: %d, Username: %s, Length: %d\n", 
+           header.operation, header.status, header.username, header.length);
+
+    // 解析數據區
+    uint8_t data[MAX_DATA_SIZE + 1];
+    parse_data(buffer + 3 + header.username_len + 4, header.length, data);
+    printf("接收到數據: %s\n", data);
 
     // 回應客戶端
     const char *response = "資料接收成功";
     uint8_t send_buffer[2048];
-    int send_len = pack_message(1, 0, (const uint8_t *)(response), strlen(response), send_buffer);
+    int send_len = pack_message(1, 0, header.username, (const uint8_t *)(response), strlen(response), send_buffer);
     send(client_socket, send_buffer, send_len, 0);
 
     close(client_socket);
