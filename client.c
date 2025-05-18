@@ -138,6 +138,25 @@ int client_send_backup_file(int sockfd, const char *username, const char *filepa
     return 0;
 }
 
+// 發送取備份請求（operation = 3），data 是檔案名稱
+int client_send_backup_request(int sockfd, const char *username, const char *filename) {
+    // filename 以字串形式放入 data，長度為 strlen(filename)
+    int sent = client_send(sockfd, 3, 0, username, (const uint8_t *)filename, strlen(filename));
+    if (sent < 0) {
+        fprintf(stderr, "取備份請求發送失敗\n");
+        return -1;
+    }
+
+    // 等待伺服器回傳備份資料
+    int recv_len = client_receive(sockfd, username);
+    if (recv_len < 0) {
+        fprintf(stderr, "取備份回應接收失敗\n");
+        return -1;
+    }
+
+    return 0;
+}
+
 int main() {
     const char *server_ip = "192.168.56.102";
     const char *username = "user";
@@ -147,6 +166,7 @@ int main() {
     if (sockfd >= 0) {
         client_send_login(sockfd, username, password);
         client_send_backup_file(sockfd, username, "test.txt");
+        client_send_backup_request(sockfd, username, "test.txt");
         close(sockfd);
     }
 
