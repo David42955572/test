@@ -12,20 +12,15 @@ typedef struct {
     uint32_t length;    // 數據區長度 (大端序)
 } ProtocolHeader;
 
-// 封裝協議頭部
-void pack_header(uint8_t operation, uint8_t status, uint32_t length, uint8_t *buffer) {
-    buffer[0] = operation;
-    buffer[1] = status;
-    uint32_t net_length = htonl(length);
-    memcpy(buffer + 2, &net_length, sizeof(uint32_t));
-}
-
 // 封裝完整協議包
 int pack_message(uint8_t operation, uint8_t status, const uint8_t *data, uint32_t data_length, uint8_t *buffer) {
     if (data_length > MAX_DATA_SIZE) return -1;
 
     // 封裝頭部
-    pack_header(operation, status, data_length, buffer);
+    buffer[0] = operation;
+    buffer[1] = status;
+    uint32_t net_length = htonl(data_length);
+    memcpy(buffer + 2, &net_length, sizeof(uint32_t));
 
     // 封裝數據區
     memcpy(buffer + 6, data, data_length);
