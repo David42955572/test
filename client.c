@@ -86,9 +86,8 @@ int client_receive(int sockfd, const char *username) {
 // 發送登入請求
 int client_send_login(int sockfd, const char *username, const char *password) {
     char credentials[256];
-    snprintf(credentials, sizeof(credentials), "%s:%s", username, password);
 
-    int sent = client_send(sockfd, 1, 0, username, (uint8_t *)credentials, strlen(credentials));
+    int sent = client_send(sockfd, 1, 0, username, (uint8_t *)password, strlen(password));
     if (sent < 0) {
         fprintf(stderr, "登入請求發送失敗\n");
         return -1;
