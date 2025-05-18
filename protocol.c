@@ -35,12 +35,8 @@ int parse_header(const uint8_t *buffer, ProtocolHeader *header) {
 
     uint32_t net_length;
     memcpy(&net_length, buffer + 2, sizeof(uint32_t));
-    printf("Raw Length Bytes: %02x %02x %02x %02x\n", buffer[2], buffer[3], buffer[4], buffer[5]);
-    printf("Network Order Length: %08x\n", net_length);
 
     header->length = ntohl(net_length);
-
-    printf("Parsed Length (Host Order): %d\n", header->length);
     
     return 0;
 }
