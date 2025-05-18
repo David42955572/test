@@ -31,9 +31,9 @@ void handle_client(int client_socket) {
            header.operation, header.status, header.length);
 
     // 回應客戶端
-    const uint8_t response[] = "資料接收成功";
+    const char *response = "資料接收成功";
     uint8_t send_buffer[2048];
-    int send_len = pack_message(1, 0, response, strlen((const char *)response), send_buffer);
+    int send_len = pack_message(1, 0, (const uint8_t *)(response), strlen(response), send_buffer);
     send(client_socket, send_buffer, send_len, 0);
 
     close(client_socket);
