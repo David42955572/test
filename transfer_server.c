@@ -45,8 +45,18 @@ void release_port(int port) {
 }
 
 void *handle_dynamic_port(void *arg) {
-    int client_socket = *(int *)arg;
+    int dynamic_socket = *(int *)arg;
     free(arg);
+
+    struct sockaddr_in client_addr;
+    socklen_t addr_len = sizeof(client_addr);
+
+    int client_socket = accept(dynamic_socket, (struct sockaddr *)&client_addr, &addr_len);
+    if (client_socket < 0) {
+        perror("accept 失敗");
+        close(dynamic_socket);
+        return NULL;
+    }
 
     uint8_t buffer[MAX_DATA_SIZE];
     int bytes_received = recv(client_socket, buffer, MAX_DATA_SIZE, 0);
@@ -75,6 +85,7 @@ void *handle_dynamic_port(void *arg) {
     send(client_socket, send_buffer, send_len, 0);
 
     close(client_socket);
+    close(dynamic_socket);
     return NULL;
 }
 
@@ -121,11 +132,44 @@ void *handle_main_port(void *arg) {
         send(client_socket, send_buffer, send_len, 0);
         close(client_socket);
 
-        pthread_t tid;
+        // 建立新的 socket
+        int dynamic_socket = socket(AF_INET, SOCK_STREAM, 0);
+        if (dynamic_socket < 0) {
+            perror("建立動態 socket 失敗");
+            // 釋放 port
+            release_port(allocated_port);
+            close(client_socket);
+            continue;
+        }
+
+        // 設定動態 port 的 sockaddr
+        struct sockaddr_in dynamic_addr;
+        dynamic_addr.sin_family = AF_INET;
+        dynamic_addr.sin_addr.s_addr = INADDR_ANY;
+        dynamic_addr.sin_port = htons(allocated_port);
+
+        if (bind(dynamic_socket, (struct sockaddr *)&dynamic_addr, sizeof(dynamic_addr)) < 0) {
+            perror("bind 動態 port 失敗");
+            release_port(allocated_port);
+            close(dynamic_socket);
+            close(client_socket);
+            continue;
+        }
+
+        if (listen(dynamic_socket, 3) < 0) {
+            perror("listen 動態 port 失敗");
+            release_port(allocated_port);
+            close(dynamic_socket);
+            close(client_socket);
+            continue;
+        }
+
+        // 把動態 socket 傳給執行緒
         int *new_socket = malloc(sizeof(int));
-        *new_socket = allocated_port;
+        *new_socket = dynamic_socket;
         pthread_create(&tid, NULL, handle_dynamic_port, new_socket);
         pthread_detach(tid);
+
     }
 
     return NULL;
