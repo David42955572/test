@@ -69,56 +69,77 @@ void transfer_data(int src_socket, int dest_socket, int face) {
     int sequence_counter = 1;
     int received_final_status = 0;
 
+    #define RECV_BUF_SIZE 8192
+    uint8_t recv_buffer[RECV_BUF_SIZE];
+    int buffer_len = 0;
+
     while (received_final_status == 0) {
-        uint8_t buffer[MAX_DATA_SIZE];
-        int bytes_received = recv(src_socket, buffer, MAX_DATA_SIZE, 0);
-        if (bytes_received < 0) {
+        // 接收資料並填入緩衝區
+        int bytes = recv(src_socket, recv_buffer + buffer_len, RECV_BUF_SIZE - buffer_len, 0);
+        if (bytes < 0) {
             perror("接收資料失敗");
             break;
-        } else if (bytes_received == 0) {
+        } else if (bytes == 0) {
             printf("對端關閉連接\n");
             break;
         }
+        buffer_len += bytes;
 
-        ProtocolHeader header;
-        if (parse_header(buffer, &header) == -1) {
-            fprintf(stderr, "協議解析失敗\n");
-            break;
-        }
+        // 嘗試解析完整封包
+        while (1) {
+            if (buffer_len < 11) break; // 尚未收到足夠 header
 
-        uint8_t data[MAX_DATA_SIZE + 1];
-        parse_data(buffer + 3 + header.username_len + 8, header.length, data);
-        printf("接收到數據 - Operation: %d, Status: %d, Sequence: %u, Data: %s\n", 
-                header.operation, header.status, header.sequence, data);
+            uint8_t username_len = recv_buffer[3];
+            int header_len = 3 + username_len + 8;
 
-        int send_bytes = send(dest_socket, buffer, bytes_received, 0);
-        if (send_bytes != bytes_received) {
-            perror("轉發資料失敗");
-            break;
-        }
+            if (buffer_len < header_len) break; // 還不夠 header
 
-        // 判斷結束條件
-        if (header.status == 1 && header.sequence == sequence_counter) {
-            received_final_status = 1;
-        }
-        if (header.operation == 1 ) {
-            received_final_status = 1;
-        }
-        if (header.operation == 3 &&  face == 1) {
-            received_final_status = 1;
-        }
-        if (header.operation == 4 && face == 0) {
-            received_final_status = 1;
-        }
-        if (header.operation == 5 && face == 0) {
-            received_final_status = 1;
-        }
+            uint32_t data_len;
+            memcpy(&data_len, recv_buffer + 3 + username_len + 4, 4);
+            data_len = ntohl(data_len);
 
-        printf("%d\n", received_final_status);
+            int total_packet_len = header_len + data_len;
+            if (buffer_len < total_packet_len) break; // 尚未收到完整封包
 
-        sequence_counter++;
+            // 解析 header
+            ProtocolHeader header;
+            if (parse_header(recv_buffer, &header) == -1) {
+                fprintf(stderr, "協議解析失敗\n");
+                break;
+            }
+
+            // 解析資料
+            uint8_t data[MAX_DATA_SIZE + 1];
+            parse_data(recv_buffer + 3 + header.username_len + 8, header.length, data);
+            printf("接收到數據 - Operation: %d, Status: %d, Sequence: %u, Data: %s\n",
+                   header.operation, header.status, header.sequence, data);
+
+            // 轉發
+            int send_bytes = send(dest_socket, recv_buffer, total_packet_len, 0);
+            if (send_bytes != total_packet_len) {
+                perror("轉發資料失敗");
+                break;
+            }
+
+            // 判斷結束條件
+            if ((header.status == 1 && header.sequence == sequence_counter) ||
+                header.operation == 1 ||
+                (header.operation == 3 && face == 1) ||
+                (header.operation == 4 && face == 0) ||
+                (header.operation == 5 && face == 0)) {
+                received_final_status = 1;
+            }
+
+            printf("%d\n", received_final_status);
+            sequence_counter++;
+
+            // 移動剩餘資料
+            memmove(recv_buffer, recv_buffer + total_packet_len, buffer_len - total_packet_len);
+            buffer_len -= total_packet_len;
+        }
     }
 }
+
 
 void *handle_dynamic_port(void *arg) {
     int dynamic_socket = ((int *)arg)[0];
