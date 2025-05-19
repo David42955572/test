@@ -65,7 +65,7 @@ int connect_to_backend() {
 
     return backend_socket;
 }
-void transfer_data(int src_socket, int dest_socket) {
+void transfer_data(int src_socket, int dest_socket, int face) {
     int sequence_counter = 1;
     int received_final_status = 0;
 
@@ -95,7 +95,19 @@ void transfer_data(int src_socket, int dest_socket) {
         }
 
         // 判斷結束條件
-        if (&& header.status == 1 && header.sequence == sequence_counter) {
+        if (header.status == 1 && header.sequence == sequence_counter) {
+            received_final_status = 1;
+        }
+        if (header.operation == 1 || header.operation == 2) {
+            received_final_status = 1;
+        }
+        if (header.operation == 3 &&  face == 1) {
+            received_final_status = 1;
+        }
+        if (header.operation == 4 && face == 0) {
+            received_final_status = 1;
+        }
+        if (header.operation == 5 && face == 0) {
             received_final_status = 1;
         }
 
@@ -104,7 +116,8 @@ void transfer_data(int src_socket, int dest_socket) {
 }
 
 void *handle_dynamic_port(void *arg) {
-    int dynamic_socket = *(int *)arg;
+    int dynamic_socket = ((int *)arg)[0];
+    int allocated_port = ((int *)arg)[1];
     free(arg);
 
     struct sockaddr_in client_addr;
@@ -124,18 +137,19 @@ void *handle_dynamic_port(void *arg) {
         return NULL;
     }
 
-    transfer_data(client_socket, backend_socket);
-    transfer_data(backend_socket, client_socket);
+    transfer_data(client_socket, backend_socket, 0);
+    transfer_data(backend_socket, client_socket, 1);
     
     close(backend_socket);
     close(client_socket);
     close(dynamic_socket);
 
-    // 釋放 port
-    release_port(ntohs(((struct sockaddr_in *)&client_addr)->sin_port));
+    //釋放port
+    release_port(allocated_port);
 
     return NULL;
 }
+
 
 void *handle_main_port(void *arg) {
     int server_fd = *(int *)arg;
@@ -175,7 +189,7 @@ void *handle_main_port(void *arg) {
         char port_str[6];
         snprintf(port_str, sizeof(port_str), "%d", allocated_port);
 
-        uint8_t send_buffer[2048];
+        uint8_t send_buffer[MAX_DATA_SIZE];
         int send_len = pack_message(0, 0, header.username, 0, (const uint8_t *)port_str, strlen(port_str), send_buffer);
         send(client_socket, send_buffer, send_len, 0);
         close(client_socket);
@@ -214,9 +228,16 @@ void *handle_main_port(void *arg) {
 
         // 把動態 socket 傳給執行緒
         pthread_t tid;
-        int *new_socket = malloc(sizeof(int));
-        *new_socket = dynamic_socket;
-        pthread_create(&tid, NULL, handle_dynamic_port, new_socket);
+        int *new_socket = malloc(2 * sizeof(int));
+        new_socket[0] = dynamic_socket;
+        new_socket[0] = allocated_port;
+        if (pthread_create(&tid, NULL, handle_dynamic_port, args) != 0) {
+            perror("pthread_create 失敗");
+            release_port(allocated_port);
+            close(dynamic_socket);
+            close(client_socket);
+            free(args);
+        }
         pthread_detach(tid);
 
     }
