@@ -111,6 +111,8 @@ void transfer_data(int src_socket, int dest_socket, int face) {
             received_final_status = 1;
         }
 
+        printf("%d\n", received_final_status);
+
         sequence_counter++;
     }
 }
