@@ -103,7 +103,7 @@ int client_send(int sockfd, uint8_t operation, uint8_t status, const char *usern
 // 接收資料
 int client_receive(int sockfd, const char *username, uint32_t *sequence, uint8_t data[MAX_DATA_SIZE]) {
     uint8_t buffer[MAX_DATA_SIZE];
-    int received = recv(sockfd, buffer, BUFFER_SIZE, 0);
+    int received = recv(sockfd, buffer, MAX_DATA_SIZE, 0);
     if (received < 7) {
         fprintf(stderr, "收到的數據不足協議頭部長度\n");
         return -1;
