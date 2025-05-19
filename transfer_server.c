@@ -165,6 +165,7 @@ void *handle_main_port(void *arg) {
         }
 
         // 把動態 socket 傳給執行緒
+        pthread_t tid;
         int *new_socket = malloc(sizeof(int));
         *new_socket = dynamic_socket;
         pthread_create(&tid, NULL, handle_dynamic_port, new_socket);
