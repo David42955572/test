@@ -69,7 +69,7 @@ void transfer_data(int src_socket, int dest_socket, int face) {
     int sequence_counter = 1;
     int received_final_status = 0;
 
-    while (!received_final_status) {
+    while (received_final_status == 0) {
         uint8_t buffer[MAX_DATA_SIZE];
         int bytes_received = recv(src_socket, buffer, MAX_DATA_SIZE, 0);
         if (bytes_received <= 0) {
