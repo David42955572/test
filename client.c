@@ -230,11 +230,14 @@ int client_request_and_receive_file_list(int sockfd, const char *username) {
 
     // 緊接著準備接收多筆檔案名稱
     int total_files = 0;
-
+    
     while (1) {
 
         uint8_t data[MAX_DATA_SIZE] = {0};
-        client_receive(sockfd, username, &sequence, data);
+        int rec =client_receive(sockfd, username, &sequence, data);
+        if(rec<1){
+            break;
+        }
        
 
         printf("備份檔案 #%d: %s\n", ++total_files, data);
