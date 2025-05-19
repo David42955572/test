@@ -176,7 +176,7 @@ int client_send_file_content(int sockfd, const char *username, const char *filep
     uint32_t sequence_number = 1;
 
     while ((read_bytes = fread(buffer, 1, MAX_DATA_SIZE - 11 - strlen(username), fp)) > 0) {
-
+        
         int sent = client_send(sockfd, 3, 0, username, &sequence_number, (uint8_t *)buffer, read_bytes);
         if (sent < 0) {
             perror("發送資料失敗");
@@ -294,13 +294,9 @@ int main() {
     }
     
     if (sockfd >= 0) {
-        send(sockfd, "ABC", 3, 0);
-        sleep(1);
-        send(sockfd, "DEF", 3, 0);
-        shutdown(sockfd, SHUT_WR);
 
         //client_send_login(sockfd, username, password);
-        //client_backup_file(sockfd, username, "test.txt");
+        client_backup_file(sockfd, username, "test.txt");
         //client_send_backup_request(sockfd, username, "test.txt");
         //client_request_and_receive_file_list(sockfd, username);
         close(sockfd);
