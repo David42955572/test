@@ -25,33 +25,70 @@ int server_send(int sockfd, uint8_t operation, uint8_t status, const char *usern
     return sent_bytes;
 }
 
-// 接收資料 (後端版)
-int server_receive(int sockfd, uint8_t *operation, char *username, uint32_t *sequence, uint8_t data[MAX_DATA_SIZE]) {
-    uint8_t buffer[MAX_DATA_SIZE];
-    int received = recv(sockfd, buffer, MAX_DATA_SIZE, 0);
-    if (received < 7) {
-        fprintf(stderr, "收到的數據不足協議頭部長度\n");
-        return -1;
+#define RECV_BUF_SIZE 8192
+
+int server_receive_stream(int sockfd, 
+                          uint8_t *operation, 
+                          char *username, 
+                          uint32_t *sequence, 
+                          uint8_t data[MAX_DATA_SIZE]) {
+    static uint8_t recv_buffer[RECV_BUF_SIZE];
+    static int buffer_len = 0;
+
+    while (1) {
+        // 嘗試從 socket 讀更多資料填滿緩衝區
+        int bytes = recv(sockfd, recv_buffer + buffer_len, RECV_BUF_SIZE - buffer_len, 0);
+        if (bytes < 0) {
+            perror("接收失敗");
+            return -1;
+        } else if (bytes == 0) {
+            // 連線關閉
+            return 0;
+        }
+        buffer_len += bytes;
+
+        // 判斷是否有足夠資料解析 header（假設header最小長度為固定值，例如 11）
+        if (buffer_len < 11) continue;
+
+        uint8_t username_len = recv_buffer[3];
+        int header_len = 3 + username_len + 8;
+        if (buffer_len < header_len) continue;
+
+        // 取得 data 長度
+        uint32_t data_len;
+        memcpy(&data_len, recv_buffer + 3 + username_len + 4, 4);
+        data_len = ntohl(data_len);
+
+        int total_len = header_len + data_len;
+        if (buffer_len < total_len) continue;
+
+        // 解析 header
+        ProtocolHeader header;
+        if (parse_header(recv_buffer, &header) != 0) {
+            fprintf(stderr, "協議頭部解析失敗\n");
+            return -1;
+        }
+
+        // 複製結果輸出
+        *operation = header.operation;
+        strncpy(username, header.username, header.username_len);
+        username[header.username_len] = '\0';
+        *sequence = header.sequence;
+
+        parse_data(recv_buffer + header_len, header.length, data);
+
+        printf("接收資料 - Operation: %d, Username: %s, Sequence: %u, Data: %s\n", 
+                *operation, username, *sequence, data);
+
+        // 移除已處理資料
+        memmove(recv_buffer, recv_buffer + total_len, buffer_len - total_len);
+        buffer_len -= total_len;
+
+        // 回傳收到的資料長度
+        return header.length;
     }
-
-    ProtocolHeader header;
-    if (parse_header(buffer, &header) != 0) {
-        fprintf(stderr, "協議頭部解析失敗\n");
-        return -1;
-    }
-
-    *operation = header.operation;
-    strncpy(username, header.username, header.username_len);
-    username[header.username_len] = '\0';
-    *sequence = header.sequence;
-
-    parse_data(buffer + 3 + header.username_len + 4, header.length, data);
-
-    printf("接收資料 - Operation: %d, Username: %s, Sequence: %u, Data: %s\n", 
-            *operation, username, *sequence, data);
-    
-    return header.length;
 }
+
 
 void transfer_data(int src_socket,  char *username) {
     int sequence_counter = 1;
