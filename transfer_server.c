@@ -92,7 +92,7 @@ void transfer_data(int src_socket, int dest_socket, int face) {
             if (buffer_len < 11) break;
 
             printf ("%d\n",buffer_len);
-            uint8_t username_len = recv_buffer[3];
+            uint8_t username_len = recv_buffer[2];
             int header_len = 3 + username_len + 8;
             if (buffer_len < header_len) break;
 
