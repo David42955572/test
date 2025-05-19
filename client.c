@@ -206,6 +206,19 @@ int client_backup_file(int sockfd, const char *username, const char *filepath) {
         return -1;
     }
 
+    // 初始連接以請求新的 port
+    int sockfd = init_client(server_ip, SERVER_PORT);
+    if (sockfd < 0) return -1;
+    
+    // 請求新的 port
+    int new_port = request_port(sockfd);
+    close(sockfd);
+
+    if (new_port < 0) return -1;
+
+    // 使用新的 port 進行後續通訊
+    sockfd = init_client(server_ip, new_port);
+    
     // 2. 傳送檔案內容
     if (client_send_file_content(sockfd, username, filepath) != 0) {
         fprintf(stderr, "檔案內容傳輸失敗：%s\n", filepath);
