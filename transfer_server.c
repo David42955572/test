@@ -144,8 +144,8 @@ void *handle_dynamic_port(void *arg) {
     }
     
     uint8_t buf[MAX_DATA_SIZE];
-
-    while ((int n = recv(client_socket, buf, sizeof(buf), 0)) > 0) {
+    int n;
+    while ((n = recv(client_socket, buf, sizeof(buf), 0)) > 0) {
         write(1, buf, n);  // 直接印出
     }
 
