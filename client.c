@@ -10,6 +10,7 @@
 #include <netinet/tcp.h>
 
 #define SERVER_PORT 8080
+#define RECV_BUF_SIZE 8192
 
 // 初始化客戶端連線
 int init_client(const char *server_ip, int port) {
