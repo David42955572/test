@@ -84,6 +84,7 @@ void transfer_data(int src_socket, int dest_socket, int face) {
                 break;
             }
             buffer_len += bytes;
+            printf ("%d\n",buffer_len);
         }
 
         // 嘗試解析完整封包
