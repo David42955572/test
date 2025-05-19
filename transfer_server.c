@@ -66,7 +66,6 @@ int connect_to_backend() {
     return backend_socket;
 }
 void transfer_data(int src_socket, int dest_socket, int face) {
-    int sequence_counter = 1;
     int received_final_status = 0;
 
     #define RECV_BUF_SIZE 8192
@@ -125,15 +124,13 @@ void transfer_data(int src_socket, int dest_socket, int face) {
                 break;
             }
 
-            if ((header.status == 1 && header.sequence == sequence_counter) ||
+            if ((header.status == 1 ) ||
                 header.operation == 1 ||
                 (header.operation == 3 && face == 1) ||
                 (header.operation == 4 && face == 0) ||
                 (header.operation == 5 && face == 0)) {
                 received_final_status = 1;
             }
-
-            sequence_counter++;
 
             memmove(recv_buffer, recv_buffer + total_packet_len, buffer_len - total_packet_len);
             buffer_len -= total_packet_len;
