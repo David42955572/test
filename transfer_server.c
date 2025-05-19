@@ -77,10 +77,10 @@ void transfer_data(int src_socket, int dest_socket, int face) {
         // 接收資料並填入緩衝區
         int bytes = recv(src_socket, recv_buffer + buffer_len, RECV_BUF_SIZE - buffer_len, 0);
         if (bytes < 0) {
-            perror("接收資料失敗");
+            perror("接收資料失敗 1");
             break;
         } else if (bytes == 0) {
-            printf("對端關閉連接\n");
+            printf("對端關閉連接 2\n");
             break;
         }
         buffer_len += bytes;
@@ -104,7 +104,7 @@ void transfer_data(int src_socket, int dest_socket, int face) {
             // 解析 header
             ProtocolHeader header;
             if (parse_header(recv_buffer, &header) == -1) {
-                fprintf(stderr, "協議解析失敗\n");
+                fprintf(stderr, "協議解析失敗 3\n");
                 break;
             }
 
