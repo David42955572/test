@@ -118,6 +118,7 @@ void transfer_data(int src_socket, int dest_socket, int face) {
 void *handle_dynamic_port(void *arg) {
     int dynamic_socket = ((int *)arg)[0];
     int allocated_port = ((int *)arg)[1];
+    int port_to_release = allocated_port;  // 獨立儲存 port
     free(arg);
 
     struct sockaddr_in client_addr;
@@ -145,7 +146,7 @@ void *handle_dynamic_port(void *arg) {
     close(dynamic_socket);
 
     //釋放port
-    release_port(allocated_port);
+    release_port( port_to_release);
 
     return NULL;
 }
