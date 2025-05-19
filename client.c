@@ -100,11 +100,7 @@ int request_port(int sockfd) {
         return -1;
     }
 
-    int received = recv(sockfd, buffer, MAX_DATA_SIZE, 0);
-    if (received <= 0) {
-        fprintf(stderr, "Port reception failed\n");
-        return -1;
-    }
+    int len = client_receive(sockfd, "", &seq, buffer);
 
     int new_port = atoi((char *)buffer);
     printf("Received new port: %d\n", new_port);
