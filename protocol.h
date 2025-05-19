@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define MAX_DATA_SIZE 1022
+#define MAX_DATA_SIZE 1024
 #define MAX_USERNAME_LENGTH 255
 
 typedef struct {
