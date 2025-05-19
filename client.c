@@ -285,6 +285,13 @@ int main() {
     // 使用新的 port 進行後續通訊
     sockfd = init_client(server_ip, new_port);
 
+    int flag = 1;
+    if (setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(flag)) < 0) {
+        perror("setsockopt TCP_NODELAY 失敗");
+    } else {
+        printf("TCP_NODELAY 設定成功\n");
+    }
+    
     if (sockfd >= 0) {
         client_send_login(sockfd, username, password);
         //client_backup_file(sockfd, username, "test.txt");
