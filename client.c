@@ -100,7 +100,7 @@ int request_port(int sockfd) {
         return -1;
     }
 
-    int len = client_receive(sockfd, "", &seq, buffer);
+    client_receive(sockfd, "", &sequence, buffer);
 
     int new_port = atoi((char *)buffer);
     printf("Received new port: %d\n", new_port);
