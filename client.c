@@ -11,47 +11,26 @@
 #define SERVER_PORT 8080
 
 // 請求動態分配 port
-int request_port(const char *server_ip) {
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-        perror("Socket creation failed");
+int request_port(int sockfd) {
+    uint32_t sequence = 1;
+    uint8_t buffer[MAX_DATA_SIZE] = {0};
+    int sent = client_send(sockfd, 6, 0, "", &sequence, NULL, 0);
+    if (sent < 0) {
+        fprintf(stderr, "Port request failed\n");
         return -1;
     }
 
-    struct sockaddr_in server_addr;
-    memset(&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(SERVER_PORT);
-
-    if (inet_pton(AF_INET, server_ip, &server_addr.sin_addr) <= 0) {
-        perror("Invalid address");
-        close(sockfd);
+    int received = recv(sockfd, buffer, MAX_DATA_SIZE, 0);
+    if (received <= 0) {
+        fprintf(stderr, "Port reception failed\n");
         return -1;
     }
 
-    if (connect(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        perror("Connection failed");
-        close(sockfd);
-        return -1;
-    }
-
-    uint8_t request[] = {0}; // 以 operation = 0 為請求 port 分配
-    if (send(sockfd, request, sizeof(request), 0) < 0) {
-        perror("Request for port failed");
-        close(sockfd);
-        return -1;
-    }
-
-    uint16_t assigned_port;
-    if (recv(sockfd, &assigned_port, sizeof(assigned_port), 0) < 0) {
-        perror("Receiving assigned port failed");
-        close(sockfd);
-        return -1;
-    }
-
-    close(sockfd);
-    return ntohs(assigned_port);
+    int new_port = atoi((char *)buffer);
+    printf("Received new port: %d\n", new_port);
+    return new_port;
 }
+
 
 // 初始化客戶端連線
 int init_client(const char *server_ip, int port) {
