@@ -164,13 +164,13 @@ int client_send_file_content(int sockfd, const char *username, const char *filep
 
     while ((read_bytes = fread(buffer, 1, BUFFER_SIZE - 8 - strlen(username), fp)) > 0) {
 
-        int sent = client_send(sockfd, 3, 0, username, &sequence_number, (uint8_t *)buffer, strlen(buffer));
+        int sent = client_send(sockfd, 3, 0, username, &sequence_number, (uint8_t *)buffer, read_bytes);
 
         sequence_number++;
     }
 
     // 傳送結束標誌
-    int sent = client_send(sockfd, 3, 1, username, sequence_number, NULL, 0);
+    int sent = client_send(sockfd, 3, 1, username, &sequence_number, NULL, 0);
     if (sent < 0) {
         fprintf(stderr, "結束標誌傳送失敗\n");
     }
