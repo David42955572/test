@@ -159,13 +159,6 @@ int client_send_file_request(int sockfd, const char *username, const char *filep
         return -1;
     }
 
-    // 接收伺服器回應
-    uint8_t data[MAX_DATA_SIZE] = {0};
-    
-    if(client_receive(sockfd, username, &sequence, data)!=0){
-        return -1;
-    }
-
     fclose(fp);
     return 0;
 }
