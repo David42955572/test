@@ -4,7 +4,6 @@
 #include <string.h>
 #include <arpa/inet.h>
 
-#define MAX_DATA_SIZE 1024
 
 // 封裝完整協議包
 int pack_message(uint8_t operation, uint8_t status, const char *username, uint32_t sequence, const uint8_t *data, uint32_t data_length, uint8_t *buffer) {
