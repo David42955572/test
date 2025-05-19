@@ -144,7 +144,7 @@ int client_send_login(int sockfd, const char *username, const char *password) {
     
     uint32_t sequence = 1;
     
-    int sent = client_send(sockfd, 1, 0, username, &sequence, (uint8_t *)password, strlen(password));
+    int sent = client_send(sockfd, 1, 1, username, &sequence, (uint8_t *)password, strlen(password));
     if (sent < 0) {
         fprintf(stderr, "登入請求發送失敗\n");
         return -1;
@@ -184,7 +184,7 @@ int client_send_file_request(int sockfd, const char *username, const char *filep
     snprintf(data_name, sizeof(data_name), "%s|%s", filename, timestamp);
 
     // 發送請求
-    int sent = client_send(sockfd, 2, 0, username, &sequence, (uint8_t *)data_name, strlen(data_name) + 1);
+    int sent = client_send(sockfd, 2, 1, username, &sequence, (uint8_t *)data_name, strlen(data_name) + 1);
     if (sent < 0) {
         fprintf(stderr, "備份請求發送失敗\n");
         fclose(fp);
@@ -250,7 +250,7 @@ int client_send_backup_request(int sockfd, const char *username, const char *fil
     uint32_t sequence = 1;
 
     // 發送取備份請求（operation = 5）
-    int sent = client_send(sockfd, 5, 0, username, &sequence, (const uint8_t *)filename, strlen(filename));
+    int sent = client_send(sockfd, 5, 1, username, &sequence, (const uint8_t *)filename, strlen(filename));
     if (sent < 0) {
         fprintf(stderr, "取備份請求發送失敗\n");
         return -1;
@@ -291,7 +291,7 @@ int client_request_and_receive_file_list(int sockfd, const char *username) {
     uint32_t sequence = 1;
 
     // 發送請求：operation = 4
-    int sent = client_send(sockfd, 4, 0, username, &sequence, NULL, 0);
+    int sent = client_send(sockfd, 4, 1, username, &sequence, NULL, 0);
     if (sent < 0) {
         fprintf(stderr, "取備份檔案列表請求發送失敗\n");
         return -1;
