@@ -87,7 +87,7 @@ void transfer_data(int src_socket, int dest_socket, int face) {
         }
 
         uint8_t data[MAX_DATA_SIZE + 1];
-        parse_data(buffer + 3 + header.username_len + 4, header.length, data);
+        parse_data(buffer + 3 + header.username_len + 8, header.length, data);
         printf("接收到數據 - Operation: %d, Status: %d, Sequence: %u, Data: %s\n", 
                 header.operation, header.status, header.sequence, data);
 
@@ -143,14 +143,14 @@ void *handle_dynamic_port(void *arg) {
         return NULL;
     }
     
-    uint8_t buf[MAX_DATA_SIZE];
-    int n;
-    while ((n = recv(client_socket, buf, sizeof(buf), 0)) > 0) {
-        write(1, buf, n);  // 直接印出
-    }
+    //uint8_t buf[MAX_DATA_SIZE];
+    //int n;
+   // while ((n = recv(client_socket, buf, sizeof(buf), 0)) > 0) {
+     //   write(1, buf, n);  // 直接印出
+    //}
 
-    //transfer_data(client_socket, backend_socket, 0);
-    //transfer_data(backend_socket, client_socket, 1);
+    transfer_data(client_socket, backend_socket, 0);
+    transfer_data(backend_socket, client_socket, 1);
     
     close(backend_socket);
     close(client_socket);
