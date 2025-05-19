@@ -230,15 +230,16 @@ void *handle_main_port(void *arg) {
         pthread_t tid;
         int *new_socket = malloc(2 * sizeof(int));
         new_socket[0] = dynamic_socket;
-        new_socket[0] = allocated_port;
-        if (pthread_create(&tid, NULL, handle_dynamic_port, arg) != 0) {
+        new_socket[1] = allocated_port;
+        if (pthread_create(&tid, NULL, handle_dynamic_port, new_socket) != 0) {
             perror("pthread_create 失敗");
             release_port(allocated_port);
             close(dynamic_socket);
             close(client_socket);
-            free(arg);
+            free(new_socket);
+        }else{
+            pthread_detach(tid);
         }
-        pthread_detach(tid);
 
     }
 
