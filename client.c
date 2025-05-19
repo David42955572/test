@@ -59,7 +59,7 @@ int client_send(int sockfd, uint8_t operation, uint8_t status, const char *usern
 }
 
 // 接收資料
-int client_receive(int sockfd, const char *username, uint32_t *sequence, uint8_t data[MAX_DATA_SIZE + 1]) {
+int client_receive(int sockfd, const char *username, uint32_t *sequence, uint8_t data[MAX_DATA_SIZE]) {
     uint8_t buffer[BUFFER_SIZE];
     int received = recv(sockfd, buffer, BUFFER_SIZE, 0);
     if (received < 7) {
