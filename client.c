@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include "protocol.h"
+#include <netinet/tcp.h>
 
 #define SERVER_PORT 8080
 
