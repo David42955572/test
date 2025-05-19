@@ -231,7 +231,7 @@ void *handle_main_port(void *arg) {
         int *new_socket = malloc(2 * sizeof(int));
         new_socket[0] = dynamic_socket;
         new_socket[0] = allocated_port;
-        if (pthread_create(&tid, NULL, handle_dynamic_port, args) != 0) {
+        if (pthread_create(&tid, NULL, handle_dynamic_port, arg) != 0) {
             perror("pthread_create 失敗");
             release_port(allocated_port);
             close(dynamic_socket);
