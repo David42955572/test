@@ -98,7 +98,7 @@ void transfer_data(int src_socket, int dest_socket, int face) {
         if (header.status == 1 && header.sequence == sequence_counter) {
             received_final_status = 1;
         }
-        if (header.operation == 1 || header.operation == 2) {
+        if (header.operation == 1 ) {
             received_final_status = 1;
         }
         if (header.operation == 3 &&  face == 1) {
