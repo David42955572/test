@@ -9,7 +9,6 @@
 #include "protocol.h"
 
 #define SERVER_PORT 8080
-#define BUFFER_SIZE 2048
 
 // 初始化客戶端連線
 int init_client(const char *server_ip) {
@@ -42,7 +41,7 @@ int init_client(const char *server_ip) {
 
 // 發送資料
 int client_send(int sockfd, uint8_t operation, uint8_t status, const char *username, uint32_t *sequence, const uint8_t *data, uint32_t length) {
-    uint8_t buffer[BUFFER_SIZE];
+    uint8_t buffer[MAX_DATA_SIZE];
     int send_len = pack_message(operation, status, username, *sequence, data, length, buffer);
     if (send_len < 0) {
         fprintf(stderr, "封裝訊息失敗\n");
@@ -60,7 +59,7 @@ int client_send(int sockfd, uint8_t operation, uint8_t status, const char *usern
 
 // 接收資料
 int client_receive(int sockfd, const char *username, uint32_t *sequence, uint8_t data[MAX_DATA_SIZE]) {
-    uint8_t buffer[BUFFER_SIZE];
+    uint8_t buffer[MAX_DATA_SIZE];
     int received = recv(sockfd, buffer, BUFFER_SIZE, 0);
     if (received < 7) {
         fprintf(stderr, "收到的數據不足協議頭部長度\n");
@@ -161,11 +160,11 @@ int client_send_file_content(int sockfd, const char *username, const char *filep
         return -1;
     }
 
-    uint8_t buffer[BUFFER_SIZE];
+    uint8_t buffer[MAX_DATA_SIZE];
     size_t read_bytes;
     uint32_t sequence_number = 1;
 
-    while ((read_bytes = fread(buffer, 1, BUFFER_SIZE - 8 - strlen(username), fp)) > 0) {
+    while ((read_bytes = fread(buffer, 1, MAX_DATA_SIZE - 8 - strlen(username), fp)) > 0) {
 
         client_send(sockfd, 3, 0, username, &sequence_number, (uint8_t *)buffer, read_bytes);
 
