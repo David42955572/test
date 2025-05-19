@@ -27,7 +27,7 @@ int server_send(int sockfd, uint8_t operation, uint8_t status, const char *usern
 
 #define RECV_BUF_SIZE 8192
 
-int server_receive_stream(int sockfd, 
+int server_receive(int sockfd, 
                           uint8_t *operation, 
                           char *username, 
                           uint32_t *sequence, 
