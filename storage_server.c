@@ -84,6 +84,7 @@ int server_receive(int sockfd,
 }
 
 void transfer_data(int src_socket, char *username) {
+    int sequence_counter = 1;
     uint8_t operation = 0;
     uint8_t status = 0;
     int keep_receiving = 1;
@@ -108,6 +109,7 @@ void transfer_data(int src_socket, char *username) {
         if (status == 1) {
             keep_receiving = 0;
         }
+        sequence_counter++;
     }
 
     uint8_t response_data[50];
