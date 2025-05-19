@@ -50,7 +50,7 @@ int server_receive(int sockfd,
         // 判斷是否有足夠資料解析 header（假設header最小長度為固定值，例如 11）
         if (buffer_len < 11) continue;
 
-        uint8_t username_len = recv_buffer[3];
+        uint8_t username_len = recv_buffer[2];
         int header_len = 3 + username_len + 8;
         if (buffer_len < header_len) continue;
 
