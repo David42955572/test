@@ -184,7 +184,7 @@ int client_send_file_request(int sockfd, const char *username, const char *filep
     snprintf(data_name, sizeof(data_name), "%s|%s", filename, timestamp);
 
     // 發送請求
-    int sent = client_send(sockfd, 2, 1, username, &sequence, (uint8_t *)data_name, strlen(data_name) + 1);
+    int sent = client_send(sockfd, 2, 0, username, &sequence, (uint8_t *)data_name, strlen(data_name) + 1);
     if (sent < 0) {
         fprintf(stderr, "備份請求發送失敗\n");
         fclose(fp);
