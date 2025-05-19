@@ -294,7 +294,12 @@ int main() {
     }
     
     if (sockfd >= 0) {
-        client_send_login(sockfd, username, password);
+        send(sockfd, "ABC", 3, 0);
+        sleep(1);
+        send(sockfd, "DEF", 3, 0);
+        shutdown(sockfd, SHUT_WR);
+
+        //client_send_login(sockfd, username, password);
         //client_backup_file(sockfd, username, "test.txt");
         //client_send_backup_request(sockfd, username, "test.txt");
         //client_request_and_receive_file_list(sockfd, username);
