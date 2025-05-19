@@ -277,6 +277,11 @@ int main() {
     const char *server_ip = "192.168.56.102";
     const char *username = "user";
     const char *password = "pass";
+
+     // 初始連接以請求新的 port
+    int sockfd = init_client(server_ip, SERVER_PORT);
+    if (sockfd < 0) return -1;
+    
     // 請求新的 port
     int new_port = request_port(sockfd);
     close(sockfd);
