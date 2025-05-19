@@ -74,54 +74,52 @@ void transfer_data(int src_socket, int dest_socket, int face) {
     int buffer_len = 0;
 
     while (received_final_status == 0) {
-        // 接收資料並填入緩衝區
-        int bytes = recv(src_socket, recv_buffer + buffer_len, RECV_BUF_SIZE - buffer_len, 0);
-        if (bytes < 0) {
-            perror("接收資料失敗 1");
-            break;
-        } else if (bytes == 0) {
-            printf("對端關閉連接 2\n");
-            break;
+        if (buffer_len < RECV_BUF_SIZE) {
+            int bytes = recv(src_socket, recv_buffer + buffer_len, RECV_BUF_SIZE - buffer_len, 0);
+             if (bytes < 0) {
+                perror("接收資料失敗 1");
+                break;
+            } else if (bytes == 0) {
+                printf("對端關閉連接 2\n");
+                break;
+            }
+            buffer_len += bytes;
         }
-        buffer_len += bytes;
 
         // 嘗試解析完整封包
         while (1) {
-            if (buffer_len < 11) break; // 尚未收到足夠 header
+            if (buffer_len < 11) break;
 
             uint8_t username_len = recv_buffer[3];
             int header_len = 3 + username_len + 8;
-
-            if (buffer_len < header_len) break; // 還不夠 header
+            if (buffer_len < header_len) break;
 
             uint32_t data_len;
             memcpy(&data_len, recv_buffer + 3 + username_len + 4, 4);
             data_len = ntohl(data_len);
 
             int total_packet_len = header_len + data_len;
-            if (buffer_len < total_packet_len) break; // 尚未收到完整封包
+            if (buffer_len < total_packet_len) break;
 
-            // 解析 header
             ProtocolHeader header;
             if (parse_header(recv_buffer, &header) == -1) {
                 fprintf(stderr, "協議解析失敗 3\n");
+                // 無效封包也要跳過，不然卡死
+                buffer_len = 0;
                 break;
             }
 
-            // 解析資料
             uint8_t data[MAX_DATA_SIZE + 1];
             parse_data(recv_buffer + 3 + header.username_len + 8, header.length, data);
             printf("接收到數據 - Operation: %d, Status: %d, Sequence: %u, Data: %s\n",
-                   header.operation, header.status, header.sequence, data);
+               header.operation, header.status, header.sequence, data);
 
-            // 轉發
             int send_bytes = send(dest_socket, recv_buffer, total_packet_len, 0);
             if (send_bytes != total_packet_len) {
                 perror("轉發資料失敗");
                 break;
             }
 
-            // 判斷結束條件
             if ((header.status == 1 && header.sequence == sequence_counter) ||
                 header.operation == 1 ||
                 (header.operation == 3 && face == 1) ||
@@ -130,10 +128,8 @@ void transfer_data(int src_socket, int dest_socket, int face) {
                 received_final_status = 1;
             }
 
-            printf("%d\n", received_final_status);
             sequence_counter++;
 
-            // 移動剩餘資料
             memmove(recv_buffer, recv_buffer + total_packet_len, buffer_len - total_packet_len);
             buffer_len -= total_packet_len;
         }
