@@ -147,7 +147,7 @@ int client_send_file_request(int sockfd, const char *username, const char *filep
     char timestamp[64];
     strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", localtime(&file_stat.st_mtime));
 
-    // 構建資料格式：檔名\0時間戳\0
+    // 構建資料格式：檔名|時間戳\0
     char data_name[256];
     snprintf(data_name, sizeof(data_name), "%s|%s", filename, timestamp);
 
@@ -205,19 +205,6 @@ int client_backup_file(int sockfd, const char *username, const char *filepath) {
         fprintf(stderr, "備份請求失敗：%s\n", filepath);
         return -1;
     }
-
-    // 初始連接以請求新的 port
-    int sockfd = init_client(server_ip, SERVER_PORT);
-    if (sockfd < 0) return -1;
-    
-    // 請求新的 port
-    int new_port = request_port(sockfd);
-    close(sockfd);
-
-    if (new_port < 0) return -1;
-
-    // 使用新的 port 進行後續通訊
-    sockfd = init_client(server_ip, new_port);
     
     // 2. 傳送檔案內容
     if (client_send_file_content(sockfd, username, filepath) != 0) {
