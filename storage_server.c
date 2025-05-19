@@ -1,3 +1,20 @@
+// 發送資料
+int server_send(int sockfd, uint8_t operation, uint8_t status, const char *username, uint32_t *sequence, const uint8_t *data, uint32_t length) {
+    uint8_t buffer[MAX_DATA_SIZE];
+    int send_len = pack_message(operation, status, username, *sequence, data, length, buffer);
+    if (send_len < 0) {
+        fprintf(stderr, "封裝訊息失敗\n");
+        return -1;
+    }
+
+    int sent_bytes = send(sockfd, buffer, send_len, 0);
+    if (sent_bytes != send_len) {
+        perror("發送數據失敗");
+        return -1;
+    }
+
+    return sent_bytes;
+}
 // 接收資料 (後端版)
 int server_receive(int sockfd, uint8_t *operation, char *username, uint32_t *sequence, uint8_t data[MAX_DATA_SIZE]) {
     uint8_t buffer[MAX_DATA_SIZE];
