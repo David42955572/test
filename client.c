@@ -176,7 +176,12 @@ int client_send_file_content(int sockfd, const char *username, const char *filep
 
     while ((read_bytes = fread(buffer, 1, MAX_DATA_SIZE - 8 - strlen(username), fp)) > 0) {
 
-        client_send(sockfd, 3, 0, username, &sequence_number, (uint8_t *)buffer, read_bytes);
+        int sent = client_send(sockfd, 3, 0, username, &sequence_number, (uint8_t *)buffer, read_bytes);
+        if (sent < 0) {
+            perror("發送資料失敗");
+            fclose(fp);
+            return -1;
+        }
 
         sequence_number++;
     }
