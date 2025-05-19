@@ -94,7 +94,7 @@ int client_send_login(int sockfd, const char *username, const char *password) {
     
     uint32_t sequence = 1;
     
-    int sent = client_send(sockfd, 1, 0, username, sequence, (uint8_t *)password, strlen(password));
+    int sent = client_send(sockfd, 1, 0, username, *sequence, (uint8_t *)password, strlen(password));
     if (sent < 0) {
         fprintf(stderr, "登入請求發送失敗\n");
         return -1;
@@ -134,7 +134,7 @@ int client_send_file_request(int sockfd, const char *username, const char *filep
     snprintf(data, sizeof(data), "%s\0%s", filename, timestamp);
 
     // 發送請求
-    int sent = client_send(sockfd, 2, 0, username, sequence, (uint8_t *)data, strlen(data) + 1);
+    int sent = client_send(sockfd, 2, 0, username, *sequence, (uint8_t *)data, strlen(data) + 1);
     if (sent < 0) {
         fprintf(stderr, "備份請求發送失敗\n");
         fclose(fp);
@@ -168,7 +168,7 @@ int client_send_file_content(int sockfd, const char *username, const char *filep
     }
 
     // 傳送結束標誌
-    int sent = client_send(sockfd, 3, 1, username, sequence_number, NULL, 0);
+    int sent = client_send(sockfd, 3, 1, username, *sequence_number, NULL, 0);
     if (sent < 0) {
         fprintf(stderr, "結束標誌傳送失敗\n");
     }
@@ -198,7 +198,7 @@ int client_backup_file(int sockfd, const char *username, const char *filepath) {
 int client_send_backup_request(int sockfd, const char *username, const char *filename) {
     // filename 以字串形式放入 data，長度為 strlen(filename)
     uint32_t sequence = 1;
-    int sent = client_send(sockfd, 5, 0, username, sequence, (const uint8_t *)filename, strlen(filename));
+    int sent = client_send(sockfd, 5, 0, username, *sequence, (const uint8_t *)filename, strlen(filename));
     if (sent < 0) {
         fprintf(stderr, "取備份請求發送失敗\n");
         return -1;
@@ -220,7 +220,7 @@ int client_request_and_receive_file_list(int sockfd, const char *username) {
     // 送出取備份檔案列表請求（operation=4, status=0, data=NULL）
     uint32_t sequence = 1;
     
-    int sent = client_send(sockfd, 4, 0, username, sequence, NULL, 0);
+    int sent = client_send(sockfd, 4, 0, username, *sequence, NULL, 0);
     if (sent < 0) {
         fprintf(stderr, "取備份檔案列表請求發送失敗\n");
         return -1;
