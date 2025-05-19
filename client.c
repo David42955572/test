@@ -60,35 +60,65 @@ int client_send(int sockfd, uint8_t operation, uint8_t status, const char *usern
 
 // 接收資料
 int client_receive(int sockfd, const char *username, uint32_t *sequence, uint8_t data[MAX_DATA_SIZE]) {
-    uint8_t buffer[MAX_DATA_SIZE];
-    int received = recv(sockfd, buffer, MAX_DATA_SIZE, 0);
-    if (received < 11) {
-        fprintf(stderr, "收到的數據不足協議頭部長度\n");
-        return -1;
+    static uint8_t recv_buffer[RECV_BUF_SIZE];
+    static int buffer_len = 0;
+
+    while (1) {
+        // 嘗試從 socket 讀更多資料進緩衝區
+        int bytes = recv(sockfd, recv_buffer + buffer_len, RECV_BUF_SIZE - buffer_len, 0);
+        if (bytes < 0) {
+            perror("接收失敗");
+            return -1;
+        } else if (bytes == 0) {
+            // 對端關閉連線
+            printf("連線關閉\n");
+            return 0;
+        }
+        buffer_len += bytes;
+
+        if (buffer_len < 11) continue;
+
+        uint8_t username_len = recv_buffer[2];
+        int header_len = 3 + username_len + 8;
+        if (buffer_len < header_len) continue;
+
+        // 取得 data 長度（4 bytes）
+        uint32_t data_len;
+        memcpy(&data_len, recv_buffer + 3 + username_len + 4, 4);
+        data_len = ntohl(data_len);
+
+        int total_len = header_len + data_len;
+        if (buffer_len < total_len) continue;
+
+        // 解析 header
+        ProtocolHeader header;
+        if (parse_header(recv_buffer, &header) != 0) {
+            fprintf(stderr, "協議頭部解析失敗\n");
+            return -1;
+        }
+
+        // 驗證 username 是否符合
+        if (strcmp(username, header.username) != 0) {
+            fprintf(stderr, "收到非針對當前用戶的數據\n");
+            // 丟棄這筆封包
+            memmove(recv_buffer, recv_buffer + total_len, buffer_len - total_len);
+            buffer_len -= total_len;
+            continue;
+        }
+
+        // 複製資料
+        parse_data(recv_buffer + header_len, header.length, data);
+        *sequence = header.sequence;
+
+        printf("接收資料 - Operation: %d, Status: %d, Sequence: %u, Data: %s\n", 
+                header.operation, header.status, *sequence, data);
+
+        // 移除已處理的封包
+        memmove(recv_buffer, recv_buffer + total_len, buffer_len - total_len);
+        buffer_len -= total_len;
+
+        return header.length;
     }
-
-    ProtocolHeader header;
-    if (parse_header(buffer, &header) != 0) {
-        fprintf(stderr, "協議頭部解析失敗\n");
-        return -1;
-    }
-
-    if (strcmp(username, header.username) != 0) {
-        printf("收到非針對當前用戶的數據\n");
-        return -1;
-    }
-
-    // 解析數據
-    parse_data(buffer + 3 + header.username_len + 8, header.length, data);
-
-    // 取得 sequence
-    uint32_t seq_num = header.sequence;
-    *sequence = seq_num;
-    
-    printf("接收資料 - Operation: %d, Status: %d, Sequence: %u, Data: %s\n", 
-            header.operation, header.status, seq_num, data);
-    
-    return header.length;
 }
 
 // 請求動態分配 port
@@ -216,47 +246,71 @@ int client_backup_file(int sockfd, const char *username, const char *filepath) {
 
 // 發送取備份請求（operation = 5），data 是檔案名稱
 int client_send_backup_request(int sockfd, const char *username, const char *filename) {
-    // filename 以字串形式放入 data，長度為 strlen(filename)
     uint32_t sequence = 1;
+
+    // 發送取備份請求（operation = 5）
     int sent = client_send(sockfd, 5, 0, username, &sequence, (const uint8_t *)filename, strlen(filename));
     if (sent < 0) {
         fprintf(stderr, "取備份請求發送失敗\n");
         return -1;
     }
 
-    // 等待伺服器回傳備份資料
-    uint8_t data[MAX_DATA_SIZE] = {0};
-
-    int recv_len = client_receive(sockfd, username, &sequence, data);
-    if (recv_len < 0) {
-        fprintf(stderr, "取備份回應接收失敗\n");
+    // 開始接收備份資料（可能是多封包）
+    FILE *fp = fopen(filename, "wb");
+    if (!fp) {
+        perror("無法開啟檔案寫入");
         return -1;
     }
 
+    while (1) {
+        uint8_t data[MAX_DATA_SIZE] = {0};
+        int recv_len = client_receive(sockfd, username, &sequence, data);
+        if (recv_len < 0) {
+            fprintf(stderr, "接收備份資料失敗\n");
+            fclose(fp);
+            return -1;
+        }
+
+        // 檢查是否為結束封包（視協議設計而定，這裡假設 status == 1 表示結束）
+        if (recv_len == 0) {
+            break;
+        }
+
+        fwrite(data, 1, recv_len, fp);
+
+        // 這邊可以視需要顯示接收進度
+    }
+
+    fclose(fp);
+    printf("備份資料接收完成，已儲存為 %s\n", filename);
     return 0;
 }
 
 int client_request_and_receive_file_list(int sockfd, const char *username) {
-    // 送出取備份檔案列表請求（operation=4, status=0, data=NULL）
     uint32_t sequence = 1;
-    
+
+    // 發送請求：operation = 4
     int sent = client_send(sockfd, 4, 0, username, &sequence, NULL, 0);
     if (sent < 0) {
         fprintf(stderr, "取備份檔案列表請求發送失敗\n");
         return -1;
     }
 
-    // 緊接著準備接收多筆檔案名稱
+    // 接收多個封包
     int total_files = 0;
-    
-    while (1) {
 
+    while (1) {
         uint8_t data[MAX_DATA_SIZE] = {0};
-        int rec =client_receive(sockfd, username, &sequence, data);
-        if(rec<1){
+        int recv_len = client_receive(sockfd, username, &sequence, data);
+        if (recv_len <= 0) {
+            fprintf(stderr, "接收備份列表時發生錯誤或連線關閉\n");
             break;
         }
-       
+
+        // 檢查結尾條件（例：空字串）
+        if (strlen((char *)data) == 0) {
+            break;
+        }
 
         printf("備份檔案 #%d: %s\n", ++total_files, data);
     }
@@ -267,6 +321,7 @@ int client_request_and_receive_file_list(int sockfd, const char *username) {
 
     return total_files;
 }
+
 
 int main() {
     const char *server_ip = "192.168.56.102";
