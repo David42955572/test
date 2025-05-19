@@ -10,28 +10,6 @@
 
 #define SERVER_PORT 8080
 
-// 請求動態分配 port
-int request_port(int sockfd) {
-    uint32_t sequence = 1;
-    uint8_t buffer[MAX_DATA_SIZE] = {0};
-    int sent = client_send(sockfd, 6, 0, "", &sequence, NULL, 0);
-    if (sent < 0) {
-        fprintf(stderr, "Port request failed\n");
-        return -1;
-    }
-
-    int received = recv(sockfd, buffer, MAX_DATA_SIZE, 0);
-    if (received <= 0) {
-        fprintf(stderr, "Port reception failed\n");
-        return -1;
-    }
-
-    int new_port = atoi((char *)buffer);
-    printf("Received new port: %d\n", new_port);
-    return new_port;
-}
-
-
 // 初始化客戶端連線
 int init_client(const char *server_ip, int port) {
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -110,6 +88,27 @@ int client_receive(int sockfd, const char *username, uint32_t *sequence, uint8_t
             header.operation, header.status, seq_num, data);
     
     return header.length;
+}
+
+// 請求動態分配 port
+int request_port(int sockfd) {
+    uint32_t sequence = 1;
+    uint8_t buffer[MAX_DATA_SIZE] = {0};
+    int sent = client_send(sockfd, 6, 0, "", &sequence, NULL, 0);
+    if (sent < 0) {
+        fprintf(stderr, "Port request failed\n");
+        return -1;
+    }
+
+    int received = recv(sockfd, buffer, MAX_DATA_SIZE, 0);
+    if (received <= 0) {
+        fprintf(stderr, "Port reception failed\n");
+        return -1;
+    }
+
+    int new_port = atoi((char *)buffer);
+    printf("Received new port: %d\n", new_port);
+    return new_port;
 }
 
 // 發送登入請求
