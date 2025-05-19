@@ -41,7 +41,7 @@ int init_client(const char *server_ip) {
 // 發送資料
 int client_send(int sockfd, uint8_t operation, uint8_t status, const char *username, uint32_t *sequence, const uint8_t *data, uint32_t length) {
     uint8_t buffer[BUFFER_SIZE];
-    int send_len = pack_message(operation, status, username, sequence, data, length, buffer);
+    int send_len = pack_message(operation, status, username, *sequence, data, length, buffer);
     if (send_len < 0) {
         fprintf(stderr, "封裝訊息失敗\n");
         return -1;
