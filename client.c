@@ -277,13 +277,14 @@ int main() {
     const char *server_ip = "192.168.56.102";
     const char *username = "user";
     const char *password = "pass";
-    int port = request_port(server_ip);
-    if (port <= 0) {
-        fprintf(stderr, "動態分配 port 失敗\n");
-        return -1;
-    }
+    // 請求新的 port
+    int new_port = request_port(sockfd);
+    close(sockfd);
 
-    int sockfd = init_client(server_ip, port);
+    if (new_port < 0) return -1;
+
+    // 使用新的 port 進行後續通訊
+    sockfd = init_client(server_ip, new_port);
 
     if (sockfd >= 0) {
         client_send_login(sockfd, username, password);
