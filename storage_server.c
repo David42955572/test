@@ -3,7 +3,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
-#include <pthread.h>
 #include "protocol.h"
 
 #define MAIN_PORT 8080
@@ -25,6 +24,7 @@ int server_send(int sockfd, uint8_t operation, uint8_t status, const char *usern
 
     return sent_bytes;
 }
+
 // 接收資料 (後端版)
 int server_receive(int sockfd, uint8_t *operation, char *username, uint32_t *sequence, uint8_t data[MAX_DATA_SIZE]) {
     uint8_t buffer[MAX_DATA_SIZE];
@@ -40,13 +40,11 @@ int server_receive(int sockfd, uint8_t *operation, char *username, uint32_t *seq
         return -1;
     }
 
-    // 取得 operation、username、sequence
     *operation = header.operation;
     strncpy(username, header.username, header.username_len);
-    username[header.username_len] = '\0'; // 確保字串結尾
+    username[header.username_len] = '\0';
     *sequence = header.sequence;
 
-    // 解析數據
     parse_data(buffer + 3 + header.username_len + 4, header.length, data);
 
     printf("接收資料 - Operation: %d, Username: %s, Sequence: %u, Data: %s\n", 
@@ -55,3 +53,79 @@ int server_receive(int sockfd, uint8_t *operation, char *username, uint32_t *seq
     return header.length;
 }
 
+void transfer_data(int src_socket, const char *username) {
+    int sequence_counter = 1;
+    int received_final_status = 0;
+    uint8_t operation = 0;
+
+    while (!received_final_status) {
+        uint8_t data[MAX_DATA_SIZE] = {0};
+        uint32_t sequence = 0;
+        int length = server_receive(src_socket, &operation, username, &sequence, data);
+
+        if (length < 0) {
+            perror("接收資料失敗");
+            break;
+        }
+
+        printf("接收到數據 - Sequence: %u, Data: %s\n", sequence, data);
+
+        if (sequence == sequence_counter) {
+            received_final_status = 1;
+        }
+
+        sequence_counter++;
+    }
+
+    uint8_t response_data[50];
+    snprintf((char *)response_data, 50, "收到 %d 筆資料", sequence_counter);
+    uint32_t response_sequence = 1;
+    server_send(src_socket, 0, 0, username, &response_sequence, response_data, strlen((char *)response_data));
+}
+
+int main() {
+    int server_socket, client_socket;
+    struct sockaddr_in server_addr, client_addr;
+    socklen_t client_len = sizeof(client_addr);
+
+    server_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_socket == -1) {
+        perror("建立 socket 失敗");
+        exit(EXIT_FAILURE);
+    }
+
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+    server_addr.sin_port = htons(MAIN_PORT);
+
+    if (bind(server_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
+        perror("綁定 socket 失敗");
+        close(server_socket);
+        exit(EXIT_FAILURE);
+    }
+
+    if (listen(server_socket, 10) == -1) {
+        perror("監聽 socket 失敗");
+        close(server_socket);
+        exit(EXIT_FAILURE);
+    }
+
+    printf("伺服器正在監聽 port %d\n", MAIN_PORT);
+
+    while (1) {
+        client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &client_len);
+        if (client_socket == -1) {
+            perror("接受連線失敗");
+            continue;
+        }
+
+        char username[32];
+        transfer_data(client_socket, username);
+
+        close(client_socket);
+        printf("連線已關閉\n");
+    }
+
+    close(server_socket);
+    return 0;
+}
