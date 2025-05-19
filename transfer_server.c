@@ -6,14 +6,13 @@
 #include "protocol.h"
 
 #define PORT 8080
-#define BUFFER_SIZE 2048
 
 void handle_client(int client_socket) {
-    uint8_t buffer[BUFFER_SIZE];
+    uint8_t buffer[MAX_DATA_SIZE];
     int bytes_received;
 
     // 接收資料
-    bytes_received = recv(client_socket, buffer, BUFFER_SIZE, 0);
+    bytes_received = recv(client_socket, buffer, MAX_DATA_SIZE, 0);
     if (bytes_received < 0) {
         perror("接收失敗");
         close(client_socket);
