@@ -94,7 +94,7 @@ int client_receive(int sockfd, const char *username, uint32_t *sequence, uint8_t
 int request_port(int sockfd) {
     uint32_t sequence = 1;
     uint8_t buffer[MAX_DATA_SIZE] = {0};
-    int sent = client_send(sockfd, 6, 0, "", &sequence, NULL, 0);
+    int sent = client_send(sockfd, 0, 0, "", &sequence, NULL, 0);
     if (sent < 0) {
         fprintf(stderr, "Port request failed\n");
         return -1;
