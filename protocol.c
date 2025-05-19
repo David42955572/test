@@ -7,7 +7,7 @@
 #define MAX_DATA_SIZE 1024
 
 // 封裝完整協議包
-int pack_message(uint8_t operation, uint8_t status, const char *username, uint32_t *sequence, const uint8_t *data, uint32_t data_length, uint8_t *buffer) {
+int pack_message(uint8_t operation, uint8_t status, const char *username, uint32_t sequence, const uint8_t *data, uint32_t data_length, uint8_t *buffer) {
     uint8_t username_len = strlen(username);
     if (data_length > MAX_DATA_SIZE) return -1;
 
