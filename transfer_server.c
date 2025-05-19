@@ -10,6 +10,7 @@
 #define PORT_RANGE_START 50000
 #define PORT_RANGE_END 51000
 #define MAX_CLIENTS (PORT_RANGE_END - PORT_RANGE_START)
+#define back_server "192.168.56.103"
 
 typedef struct {
     int port;
@@ -44,6 +45,64 @@ void release_port(int port) {
     }
 }
 
+int connect_to_backend() {
+    int backend_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (backend_socket < 0) {
+        perror("建立後端 socket 失敗");
+        return -1;
+    }
+
+    struct sockaddr_in backend_addr;
+    backend_addr.sin_family = AF_INET;
+    backend_addr.sin_port = htons(MAIN_PORT);  // 替換成後端伺服器的 port
+    inet_pton(AF_INET, back_server, &backend_addr.sin_addr);  // 替換成後端伺服器的 IP
+
+    if (connect(backend_socket, (struct sockaddr *)&backend_addr, sizeof(backend_addr)) < 0) {
+        perror("連接後端伺服器失敗");
+        close(backend_socket);
+        return -1;
+    }
+
+    return backend_socket;
+}
+void transfer_data(int src_socket, int dest_socket) {
+    int sequence_counter = 1;
+    int received_final_status = 0;
+
+    while (!received_final_status) {
+        uint8_t buffer[MAX_DATA_SIZE];
+        int bytes_received = recv(src_socket, buffer, MAX_DATA_SIZE, 0);
+        if (bytes_received <= 0) {
+            perror("接收資料失敗");
+            break;
+        }
+
+        ProtocolHeader header;
+        if (parse_header(buffer, &header) == -1) {
+            fprintf(stderr, "協議解析失敗\n");
+            break;
+        }
+
+        uint8_t data[MAX_DATA_SIZE + 1];
+        parse_data(buffer + 3 + header.username_len + 4, header.length, data);
+        printf("接收到數據 - Operation: %d, Status: %d, Sequence: %u, Data: %s\n", 
+                header.operation, header.status, header.sequence, data);
+
+        int send_bytes = send(dest_socket, buffer, bytes_received, 0);
+        if (send_bytes != bytes_received) {
+            perror("轉發資料失敗");
+            break;
+        }
+
+        // 判斷結束條件
+        if (&& header.status == 1 && header.sequence == sequence_counter) {
+            received_final_status = 1;
+        }
+
+        sequence_counter++;
+    }
+}
+
 void *handle_dynamic_port(void *arg) {
     int dynamic_socket = *(int *)arg;
     free(arg);
@@ -58,34 +117,23 @@ void *handle_dynamic_port(void *arg) {
         return NULL;
     }
 
-    uint8_t buffer[MAX_DATA_SIZE];
-    int bytes_received = recv(client_socket, buffer, MAX_DATA_SIZE, 0);
-    if (bytes_received <= 0) {
+    int backend_socket = connect_to_backend();
+    if (backend_socket < 0) {
         close(client_socket);
+        close(dynamic_socket);
         return NULL;
     }
 
-    ProtocolHeader header;
-    if (parse_header(buffer, &header) == -1) {
-        fprintf(stderr, "協議解析失敗\n");
-        close(client_socket);
-        return NULL;
-    }
-
-    printf("接收到資料 - Operation: %d, Status: %d, Username: %s, Length: %d\n", 
-           header.operation, header.status, header.username, header.length);
-
-    uint8_t data[MAX_DATA_SIZE + 1];
-    parse_data(buffer + 3 + header.username_len + 4, header.length, data);
-    printf("接收到數據: %s\n", data);
-
-    const char *response = "資料接收成功";
-    uint8_t send_buffer[2048];
-    int send_len = pack_message(1, 0, header.username, 0, (const uint8_t *)response, strlen(response), send_buffer);
-    send(client_socket, send_buffer, send_len, 0);
-
+    transfer_data(client_socket, backend_socket);
+    transfer_data(backend_socket, client_socket);
+    
+    close(backend_socket);
     close(client_socket);
     close(dynamic_socket);
+
+    // 釋放 port
+    release_port(ntohs(((struct sockaddr_in *)&client_addr)->sin_port));
+
     return NULL;
 }
 
