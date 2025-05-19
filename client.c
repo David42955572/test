@@ -132,11 +132,11 @@ int client_send_file_request(int sockfd, const char *username, const char *filep
     strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", localtime(&file_stat.st_mtime));
 
     // 構建資料格式：檔名\0時間戳\0
-    char data[256];
-    snprintf(data, sizeof(data), "%s|%s", filename, timestamp);
+    char data_name[256];
+    snprintf(data_name, sizeof(data_name), "%s|%s", filename, timestamp);
 
     // 發送請求
-    int sent = client_send(sockfd, 2, 0, username, &sequence, (uint8_t *)data, strlen(data) + 1);
+    int sent = client_send(sockfd, 2, 0, username, &sequence, (uint8_t *)data_name, strlen(data_name) + 1);
     if (sent < 0) {
         fprintf(stderr, "備份請求發送失敗\n");
         fclose(fp);
@@ -164,7 +164,7 @@ int client_send_file_content(int sockfd, const char *username, const char *filep
 
     while ((read_bytes = fread(buffer, 1, BUFFER_SIZE - 8 - strlen(username), fp)) > 0) {
 
-        int sent = client_send(sockfd, 3, 0, username, &sequence_number, (uint8_t *)buffer, read_bytes);
+        client_send(sockfd, 3, 0, username, &sequence_number, (uint8_t *)buffer, read_bytes);
 
         sequence_number++;
     }
@@ -229,7 +229,6 @@ int client_request_and_receive_file_list(int sockfd, const char *username) {
     }
 
     // 緊接著準備接收多筆檔案名稱
-    uint8_t buffer[BUFFER_SIZE];
     int total_files = 0;
 
     while (1) {
@@ -256,7 +255,7 @@ int main() {
 
     if (sockfd >= 0) {
         client_send_login(sockfd, username, password);
-        client_send_backup_file(sockfd, username, "test.txt");
+        client_backup_file(sockfd, username, "test.txt");
         client_send_backup_request(sockfd, username, "test.txt");
         client_request_and_receive_file_list(sockfd, username);
         close(sockfd);
