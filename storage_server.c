@@ -53,7 +53,7 @@ int server_receive(int sockfd, uint8_t *operation, char *username, uint32_t *seq
     return header.length;
 }
 
-void transfer_data(int src_socket, const char *username) {
+void transfer_data(int src_socket,  char *username) {
     int sequence_counter = 1;
     int received_final_status = 0;
     uint8_t operation = 0;
