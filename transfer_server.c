@@ -84,11 +84,11 @@ void transfer_data(int src_socket, int dest_socket, int face) {
                 break;
             }
             buffer_len += bytes;
-            printf ("%d\n",buffer_len);
         }
 
         // 嘗試解析完整封包
         while (1) {
+            printf ("%d\n",buffer_len);
             if (buffer_len < 11) break;
 
             uint8_t username_len = recv_buffer[3];
