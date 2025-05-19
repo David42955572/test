@@ -236,7 +236,7 @@ void *handle_main_port(void *arg) {
             release_port(allocated_port);
             close(dynamic_socket);
             close(client_socket);
-            free(args);
+            free(arg);
         }
         pthread_detach(tid);
 
