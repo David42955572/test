@@ -91,17 +91,20 @@ void transfer_data(int src_socket, int dest_socket, int face) {
             printf ("%d\n",buffer_len);
             if (buffer_len < 11) break;
 
+            printf ("%d\n",buffer_len);
             uint8_t username_len = recv_buffer[3];
             int header_len = 3 + username_len + 8;
             if (buffer_len < header_len) break;
 
+            printf ("%d\n",buffer_len);
             uint32_t data_len;
             memcpy(&data_len, recv_buffer + 3 + username_len + 4, 4);
             data_len = ntohl(data_len);
-
+            
             int total_packet_len = header_len + data_len;
             if (buffer_len < total_packet_len) break;
 
+            printf ("%d\n",buffer_len);
             ProtocolHeader header;
             if (parse_header(recv_buffer, &header) == -1) {
                 fprintf(stderr, "協議解析失敗 3\n");
@@ -109,7 +112,8 @@ void transfer_data(int src_socket, int dest_socket, int face) {
                 buffer_len = 0;
                 break;
             }
-
+            printf ("%d\n",buffer_len);
+            
             uint8_t data[MAX_DATA_SIZE + 1];
             parse_data(recv_buffer + 3 + header.username_len + 8, header.length, data);
             printf("接收到數據 - Operation: %d, Status: %d, Sequence: %u, Data: %s\n",
