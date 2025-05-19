@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <time.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <errno.h>
@@ -131,7 +133,7 @@ int client_send_file_request(int sockfd, const char *username, const char *filep
 
     // 構建資料格式：檔名\0時間戳\0
     char data[256];
-    snprintf(data, sizeof(data), "%s\0%s", filename, timestamp);
+    snprintf(data, sizeof(data), "%s|%s", filename, timestamp);
 
     // 發送請求
     int sent = client_send(sockfd, 2, 0, username, &sequence, (uint8_t *)data, strlen(data) + 1);
