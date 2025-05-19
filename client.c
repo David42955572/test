@@ -10,8 +10,8 @@
 
 #define SERVER_PORT 8080
 
-// 初始化客戶端連線
-int init_client(const char *server_ip) {
+// 請求動態分配 port
+int request_port(const char *server_ip) {
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
         perror("Socket creation failed");
@@ -35,7 +35,50 @@ int init_client(const char *server_ip) {
         return -1;
     }
 
-    printf("Connected to server %s:%d\n", server_ip, SERVER_PORT);
+    uint8_t request[] = {0}; // 以 operation = 0 為請求 port 分配
+    if (send(sockfd, request, sizeof(request), 0) < 0) {
+        perror("Request for port failed");
+        close(sockfd);
+        return -1;
+    }
+
+    uint16_t assigned_port;
+    if (recv(sockfd, &assigned_port, sizeof(assigned_port), 0) < 0) {
+        perror("Receiving assigned port failed");
+        close(sockfd);
+        return -1;
+    }
+
+    close(sockfd);
+    return ntohs(assigned_port);
+}
+
+// 初始化客戶端連線
+int init_client(const char *server_ip, int port) {
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        perror("Socket creation failed");
+        return -1;
+    }
+
+    struct sockaddr_in server_addr;
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(port);
+
+    if (inet_pton(AF_INET, server_ip, &server_addr.sin_addr) <= 0) {
+        perror("Invalid address");
+        close(sockfd);
+        return -1;
+    }
+
+    if (connect(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+        perror("Connection failed");
+        close(sockfd);
+        return -1;
+    }
+
+    printf("Connected to server %s:%d\n", server_ip, port);
     return sockfd;
 }
 
@@ -256,13 +299,19 @@ int main() {
     const char *server_ip = "192.168.56.102";
     const char *username = "user";
     const char *password = "pass";
-    int sockfd = init_client(server_ip);
+    int port = request_port(server_ip);
+    if (port <= 0) {
+        fprintf(stderr, "動態分配 port 失敗\n");
+        return -1;
+    }
+
+    int sockfd = init_client(server_ip, port);
 
     if (sockfd >= 0) {
         client_send_login(sockfd, username, password);
-        client_backup_file(sockfd, username, "test.txt");
-        client_send_backup_request(sockfd, username, "test.txt");
-        client_request_and_receive_file_list(sockfd, username);
+        //client_backup_file(sockfd, username, "test.txt");
+        //client_send_backup_request(sockfd, username, "test.txt");
+        //client_request_and_receive_file_list(sockfd, username);
         close(sockfd);
     }
 
