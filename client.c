@@ -194,7 +194,7 @@ int client_send_login(int sockfd, const char *username, const char *password) {
     
     uint32_t sequence = 1;
     
-    int sent = client_send(sockfd, 1, 1, username, &sequence, (uint8_t *)password, strlen(password));
+    int sent = client_send(sockfd, 1, 0, username, &sequence, (uint8_t *)password, strlen(password));
     if (sent < 0) {
         fprintf(stderr, "登入請求發送失敗\n");
         return -1;
