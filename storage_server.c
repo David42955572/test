@@ -201,6 +201,7 @@ void transfer_data(int src_socket, char *username) {
                     // 登入成功
                     uint8_t dummy_data[] = "Login OK";
                     server_send(sockfd, 1, 0, username, &seq, dummy_data, strlen((char*)dummy_data));
+                    printf("1\n");
                 } else {
                     // 登入失敗
                     uint8_t dummy_data[] = "Login Failed";
