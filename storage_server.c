@@ -208,7 +208,7 @@ void transfer_data(int src_socket, char *username) {
                     fprintf(stderr, "登入失敗，結束連線\n");
                     keep_receiving = 0;
                 }
-
+                break;
 
             case 2: // 創建並開啟備份檔案（data 是 timestamp）
                 if (backup_fp) fclose(backup_fp);
