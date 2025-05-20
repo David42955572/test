@@ -420,7 +420,7 @@ int main(int argc, char *argv[]) {
     
     if (sockfd >= 0) {
 
-        if(!client_send_login(sockfd, username, password)){
+        if(client_send_login(sockfd, username, password)){
             fprintf(stderr, "Login failed.\n");
             return 1;
         };
