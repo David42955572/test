@@ -139,7 +139,7 @@ int handle_list_backups(int sockfd, const char *username) {
 
     while ((entry = readdir(dir))) {
         if (entry->d_type == DT_REG) {
-            client_send(sockfd, 4, 0, username, &seq, (const uint8_t *)entry->d_name, strlen(entry->d_name));
+            server_send(sockfd, 4, 0, username, &seq, (const uint8_t *)entry->d_name, strlen(entry->d_name));
             seq++;
         }
     }
