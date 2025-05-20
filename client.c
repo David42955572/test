@@ -424,7 +424,9 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "Login failed.\n");
             return 1;
         };
-
+        
+        close(sockfd);
+        
         if (strcmp(config.mode, "backup") == 0 && strlen(config.filepath) == 0) {
             fprintf(stderr, "備份模式下必須提供 --file 參數\n");
             exit(EXIT_FAILURE);
