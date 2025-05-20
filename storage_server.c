@@ -4,6 +4,11 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include "protocol.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <dirent.h>    
+#include <unistd.h> 
+#include <fcntl.h>
 
 #define MAIN_PORT 8080
 
