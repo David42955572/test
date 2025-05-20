@@ -83,11 +83,94 @@ int server_receive(int sockfd,
     }
 }
 
+int handle_login(const char *username, const uint8_t *password) {
+    FILE *fp = fopen("users.txt", "r");
+    if (!fp) {
+        perror("無法打開使用者清單檔案");
+        return 0;
+    }
+
+    char file_user[100], file_pass[100];
+    int valid = 0;
+
+    while (fscanf(fp, "%s %s", file_user, file_pass) == 2) {
+        if (strcmp(file_user, username) == 0 && strcmp(file_pass, (const char *)password) == 0) {
+            valid = 1;
+            break;
+        }
+    }
+
+    fclose(fp);
+    return valid;
+}
+
+FILE* handle_start_backup(const char *username, const char *timestamp) {
+    char folder[128], filename[256];
+    snprintf(folder, sizeof(folder), "./backup/%s", username);
+    mkdir(folder, 0777);  // 若資料夾不存在則建立
+
+    snprintf(filename, sizeof(filename), "%s/%s_%s.txt", folder, username, timestamp);
+    return fopen(filename, "w");
+}
+
+int handle_write_backup(FILE *fp, const uint8_t *data, int len) {
+    if (!fp) return -1;
+    size_t written = fwrite(data, 1, len, fp);
+    return written == len ? 0 : -1;
+}
+
+int handle_list_backups(int sockfd, const char *username) {
+    char path[128];
+    snprintf(path, sizeof(path), "./backup/%s", username);
+
+    DIR *dir = opendir(path);
+    if (!dir) {
+        perror("無法開啟備份資料夾");
+        return -1;
+    }
+
+    struct dirent *entry;
+    uint32_t seq = 1;
+
+    while ((entry = readdir(dir))) {
+        if (entry->d_type == DT_REG) {
+            client_send(sockfd, 4, 0, username, &seq, (const uint8_t *)entry->d_name, strlen(entry->d_name));
+            seq++;
+        }
+    }
+
+    closedir(dir);
+    return 0;
+}
+
+int handle_send_backup(int sockfd, const char *username, const char *filename) {
+    char filepath[256];
+    snprintf(filepath, sizeof(filepath), "./backup/%s/%s", username, filename);
+
+    FILE *fp = fopen(filepath, "r");
+    if (!fp) {
+        perror("無法打開備份檔案");
+        return -1;
+    }
+
+    uint8_t buffer[MAX_DATA_SIZE];
+    size_t read_len;
+    uint32_t seq = 1;
+
+    while ((read_len = fread(buffer, 1, MAX_DATA_SIZE, fp)) > 0) {
+        client_send(sockfd, 5, 0, username, &seq, buffer, read_len);
+        seq++;
+    }
+
+    fclose(fp);
+    return 0;
+}
+
 void transfer_data(int src_socket, char *username) {
-    int sequence_counter = 1;
     uint8_t operation = 0;
     uint8_t status = 0;
     int keep_receiving = 1;
+    FILE *backup_fp = NULL; // 用於備份寫入階段
 
     while (keep_receiving) {
         uint8_t data[MAX_DATA_SIZE] = {0};
@@ -105,19 +188,52 @@ void transfer_data(int src_socket, char *username) {
         printf("接收到數據 - Operation: %d, Status: %d, Sequence: %u, Data: %s\n",
                operation, status, sequence, data);
 
-        // 根據 status 判斷是否結束，假設 status == 1 表示結束
+        switch (operation) {
+            case 1: // 登入驗證
+                if (!handle_login(username, data)) {
+                    fprintf(stderr, "登入失敗，結束連線\n");
+                    keep_receiving = 0;
+                }
+                break;
+
+            case 2: // 創建並開啟備份檔案（data 是 timestamp）
+                if (backup_fp) fclose(backup_fp);
+                backup_fp = handle_start_backup(username, (char *)data);
+                if (!backup_fp) {
+                    fprintf(stderr, "無法創建備份檔案\n");
+                    keep_receiving = 0;
+                }
+                break;
+
+            case 3: // 寫入備份資料
+                if (handle_write_backup(backup_fp, data, length) != 0) {
+                    fprintf(stderr, "備份資料寫入失敗\n");
+                    keep_receiving = 0;
+                }
+                break;
+
+            case 4: // 回傳該使用者的所有檔案名稱
+                handle_list_backups(src_socket, username);
+                break;
+
+            case 5: // 傳送指定備份檔案內容（data 是檔名）
+                handle_send_backup(src_socket, username, (char *)data);
+                break;
+
+            default:
+                fprintf(stderr, "未知的操作類型: %d\n", operation);
+                break;
+        }
+
         if (status == 1) {
             keep_receiving = 0;
         }
-        sequence_counter++;
+
     }
 
-    uint8_t response_data[50];
-    snprintf((char *)response_data, sizeof(response_data), "收到 %d 筆資料", sequence_counter);
-    uint32_t response_sequence = 1;
-    server_send(src_socket, 0, 0, username, &response_sequence, response_data, strlen((char *)response_data));
-}
+    if (backup_fp) fclose(backup_fp);
 
+}
 
 int main() {
     int server_socket, client_socket;
