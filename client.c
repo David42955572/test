@@ -429,19 +429,41 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "備份模式下必須提供 --file 參數\n");
             exit(EXIT_FAILURE);
         }
-         // 3. 根據模式執行操作
-        if (strcmp(config.mode, "backup") == 0) {
-            client_backup_file(sockfd, username, config.filepath);
-        } else if (strcmp(config.mode, "restore") == 0) {
-            client_send_backup_request(sockfd, username, config.filepath);
-        } else if (strcmp(config.mode, "list") == 0) {
-            client_request_and_receive_file_list(sockfd, username);
-        } else if (strcmp(config.mode, "setup-cron") == 0) {
-            generate_cron_job(config);  // 會自動產生 crontab 任務
-        } else {
-            fprintf(stderr, "Unknown mode: %s\n", config.mode);
-        }
         
+        // 初始連接以請求新的 port
+        int sockfd = init_client(server_ip, SERVER_PORT);
+        if (sockfd < 0) return -1;
+    
+        // 請求新的 port
+        int new_port = request_port(sockfd);
+        close(sockfd);
+
+        if (new_port < 0) return -1;
+
+        // 使用新的 port 進行後續通訊
+        sockfd = init_client(server_ip, new_port);
+
+        int flag = 1;
+        if (setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(flag)) < 0) {
+            perror("setsockopt TCP_NODELAY 失敗");
+        } else {
+            printf("TCP_NODELAY 設定成功\n");
+        }
+
+        if (sockfd >= 0) {
+         // 3. 根據模式執行操作
+            if (strcmp(config.mode, "backup") == 0) {
+                client_backup_file(sockfd, username, config.filepath);
+            } else if (strcmp(config.mode, "restore") == 0) {
+                client_send_backup_request(sockfd, username, config.filepath);
+            } else if (strcmp(config.mode, "list") == 0) {
+                client_request_and_receive_file_list(sockfd, username);
+            } else if (strcmp(config.mode, "setup-cron") == 0) {
+                generate_cron_job(config);  // 會自動產生 crontab 任務
+            } else {
+                fprintf(stderr, "Unknown mode: %s\n", config.mode);
+            }
+        }
         close(sockfd);
     }
 
