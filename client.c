@@ -374,27 +374,7 @@ int client_request_and_receive_file_list(int sockfd, const char *username) {
 }
 
 void generate_cron_job(struct ClientConfig config) {
-    // 1. 產生腳本
-    FILE *fp = fopen("/usr/local/bin/auto_backup.sh", "w");
-    if (!fp) {
-        perror("無法建立備份腳本");
-        return;
-    }
-
-    fprintf(fp, "#!/bin/sh\n");
-    fprintf(fp, "/path/to/client --username %s --password %s --mode backup --file %s\n",
-            config.username, config.password, config.filepath);
-    fclose(fp);
-    chmod("/usr/local/bin/auto_backup.sh", 0755);
-
-    // 2. 安裝 cron 任務（以 system 執行）
-    int result = system("crontab -l 2>/dev/null | grep -v auto_backup.sh > /tmp/current_cron; "
-                        "echo \"*/10 * * * * /usr/local/bin/auto_backup.sh\" >> /tmp/current_cron; "
-                        "crontab /tmp/current_cron; rm /tmp/current_cron");
-
-    if (result != 0) {
-        fprintf(stderr, "設置 crontab 任務失敗\n");
-    }
+   
 }
 
 
@@ -447,8 +427,8 @@ int main(int argc, char *argv[]) {
                 client_send_backup_request(sockfd, username, config.filepath);
             } else if (strcmp(config.mode, "list") == 0) {
                 client_request_and_receive_file_list(sockfd, username);
-            } else if (strcmp(config.mode, "setup-cron") == 0) {
-                generate_cron_job(config);  // 會自動產生 crontab 任務
+            } /*else if (strcmp(config.mode, "setup-cron") == 0) {
+                generate_cron_job(config);  // 會自動產生 crontab 任務*/
             } else {
                 fprintf(stderr, "Unknown mode: %s\n", config.mode);
             }
