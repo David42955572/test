@@ -197,11 +197,18 @@ void transfer_data(int src_socket, char *username) {
 
         switch (operation) {
             case 1: // 登入驗證
-                if (!handle_login(username, data)) {
+                if (handle_login(username, data)) {
+                    // 登入成功
+                    uint8_t dummy_data[] = "Login OK";
+                    server_send(sockfd, 1, 0, username, &seq, dummy_data, strlen((char*)dummy_data));
+                } else {
+                    // 登入失敗
+                    uint8_t dummy_data[] = "Login Failed";
+                    server_send(sockfd, 1, 0, username, &seq, dummy_data, strlen((char*)dummy_data));
                     fprintf(stderr, "登入失敗，結束連線\n");
                     keep_receiving = 0;
                 }
-                break;
+
 
             case 2: // 創建並開啟備份檔案（data 是 timestamp）
                 if (backup_fp) fclose(backup_fp);
