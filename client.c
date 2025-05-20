@@ -8,9 +8,59 @@
 #include <errno.h>
 #include "protocol.h"
 #include <netinet/tcp.h>
+#include <getopt.h>
 
 #define SERVER_PORT 8080
 #define RECV_BUF_SIZE 8192
+
+struct ClientConfig {
+    char username[64];
+    char password[64];
+    char mode[32];
+    char filepath[256];  // 加入 file 路徑參數
+};
+
+struct ClientConfig parse_arguments(int argc, char *argv[]) {
+    struct ClientConfig config;
+    memset(&config, 0, sizeof(config));
+
+    static struct option long_options[] = {
+        {"username", required_argument, 0, 'u'},
+        {"password", required_argument, 0, 'p'},
+        {"mode",     required_argument, 0, 'm'},
+        {"file",     required_argument, 0, 'f'},  // 加入 file 參數
+        {0, 0, 0, 0}
+    };
+
+    int opt;
+    int option_index = 0;
+    while ((opt = getopt_long(argc, argv, "u:p:m:f:", long_options, &option_index)) != -1) {
+        switch (opt) {
+            case 'u':
+                strncpy(config.username, optarg, sizeof(config.username) - 1);
+                 break;
+            case 'p':
+                strncpy(config.password, optarg, sizeof(config.password) - 1);
+                break;
+            case 'm':
+                strncpy(config.mode, optarg, sizeof(config.mode) - 1);
+                break;
+            case 'f':
+                strncpy(config.filepath, optarg, sizeof(config.filepath) - 1);
+                break;
+            default:
+                fprintf(stderr, "Usage: %s --username <user> --password <pass> --mode <backup|restore|list|setup-cron> [--file <path>]\n", argv[0]);
+                exit(EXIT_FAILURE);
+        }
+    }
+    // 簡單檢查是否有輸入必要參數
+    if (strlen(config.username) == 0 || strlen(config.password) == 0 || strlen(config.mode) == 0) {
+        fprintf(stderr, "Missing required arguments.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    return config;
+}
 
 // 初始化客戶端連線
 int init_client(const char *server_ip, int port) {
@@ -323,11 +373,30 @@ int client_request_and_receive_file_list(int sockfd, const char *username) {
     return total_files;
 }
 
+void generate_cron_job(struct ClientConfig config) {
+    FILE *fp = fopen("/usr/local/bin/auto_backup.sh", "w");
+    if (!fp) {
+        perror("Failed to create cron script");
+        return;
+    }
 
-int main() {
+    fprintf(fp, "#!/bin/sh\n");
+    fprintf(fp, "/path/to/client --username %s --password %s --mode backup --file %s\n", config.username, config.password,config.filepath);
+    fclose(fp);
+    chmod("/usr/local/bin/auto_backup.sh", 0755);
+
+    // 安裝 cron 任務
+    FILE *cron = popen("crontab -l | grep -v auto_backup.sh > /tmp/current_cron && echo \"*/10 * * * * /usr/local/bin/auto_backup.sh\" >> /tmp/current_cron && crontab /tmp/current_cron", "w");
+    if (cron) pclose(cron);
+}
+
+int main(int argc, char *argv[]) {
+    // 1. 解析命令列參數
+    struct ClientConfig config = parse_arguments(argc, argv);
+    
     const char *server_ip = "192.168.56.102";
-    const char *username = "user";
-    const char *password = "pass";
+    char *username = config.username;
+    char *password = config.password;
 
      // 初始連接以請求新的 port
     int sockfd = init_client(server_ip, SERVER_PORT);
@@ -351,10 +420,28 @@ int main() {
     
     if (sockfd >= 0) {
 
-        //client_send_login(sockfd, username, password);
-        client_backup_file(sockfd, username, "test.txt");
-        //client_send_backup_request(sockfd, username, "test.txt");
-        //client_request_and_receive_file_list(sockfd, username);
+        if(!client_send_login(sockfd, username, password)){
+            fprintf(stderr, "Login failed.\n");
+            return 1;
+        };
+
+        if (strcmp(config.mode, "backup") == 0 && strlen(config.filepath) == 0) {
+            fprintf(stderr, "備份模式下必須提供 --file 參數\n");
+            exit(EXIT_FAILURE);
+        }
+         // 3. 根據模式執行操作
+        if (strcmp(config.mode, "backup") == 0) {
+            client_backup_file(sockfd, username, config.filepath);
+        } else if (strcmp(config.mode, "restore") == 0) {
+            client_send_backup_request(sockfd, username, config.filepath);
+        } else if (strcmp(config.mode, "list") == 0) {
+            client_request_and_receive_file_list(sockfd, username);
+        } else if (strcmp(config.mode, "setup-cron") == 0) {
+            generate_cron_job(config);  // 會自動產生 crontab 任務
+        } else {
+            fprintf(stderr, "Unknown mode: %s\n", config.mode);
+        }
+        
         close(sockfd);
     }
 
