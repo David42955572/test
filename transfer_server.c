@@ -167,6 +167,8 @@ void *handle_dynamic_port(void *arg) {
 
     transfer_data(client_socket, backend_socket, 0);
     transfer_data(backend_socket, client_socket, 1);
+    transfer_data(client_socket, backend_socket, 0);
+    transfer_data(backend_socket, client_socket, 1);
     
     close(backend_socket);
     close(client_socket);
