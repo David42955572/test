@@ -143,7 +143,7 @@ int handle_list_backups(int sockfd, const char *username) {
             seq++;
         }
     }
-
+    server_send(sockfd, 4, 1, username, &seq, NULL, 0);
     closedir(dir);
     return 0;
 }
@@ -163,10 +163,12 @@ int handle_send_backup(int sockfd, const char *username, const char *filename) {
     uint32_t seq = 1;
 
     while ((read_len = fread(buffer, 1, MAX_DATA_SIZE, fp)) > 0) {
-        client_send(sockfd, 5, 0, username, &seq, buffer, read_len);
+        server_send(sockfd, 5, 0, username, &seq, buffer, read_len);
         seq++;
     }
 
+    server_send(sockfd, 5, 1, username, &seq, NULL, 0);
+    
     fclose(fp);
     return 0;
 }
