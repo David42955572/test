@@ -130,7 +130,7 @@ int handle_list_backups(int sockfd, const char *username) {
 
     DIR *dir = opendir(path);
     if (!dir) {
-        perror("無法開啟備份資料夾");
+        perror("無法開啟備份資料夾1\n");
         return -1;
     }
 
